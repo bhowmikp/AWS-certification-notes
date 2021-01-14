@@ -17,7 +17,7 @@
     - Best to give users the minial amount of permissions they need to perform their job
     - IAM Federation: used by big enterprises so employees can login into AWS using their company credentials. Uses SAML standard (Active Directory)
     - Avoid using root account and make IAM account for adminstrator
-    - Hands on (https://bhowmikp.signin.aws.amazon.com/console)
+    - Hands on
         - Create IAM User
             - Add user -> Add username -> Give programmatic access and AWS management Console access -> (attach essiting policies: administratorAccess) -> Create user
         - Use Group to assign permissions
@@ -926,4 +926,122 @@
         - Envrionment name (dev, test, prod...) : free naming
     - Rollback feature to previous application version
     - Full control over lifecycle environments
-    
+- Application has multiple environments
+- Elastic Beanstalk Depolyment Modes
+    - Single Instance: great for dev
+        - 1 EC2 instance, 1 eplastic ip, 1 autoscaling group and maybe database, 1 AZ
+    - High Availability with Load Balancer: great for prod
+        - 1 ASG spanning multiple AZ, each AZ has serveral EC2 instances with their own security groups maybe with multiple databases, 1 ELB will expose DNS name
+- Deployment options for updates
+    - All at once (deploy all in one go): fastest, but instances arent available to serve traffic for a bit (downtime)
+        - Fastest deployment
+        - Application downtime
+        - Great for quick interations in development environment
+        - No cost
+    - Rolling: update a few instances at a time (bucket), and then move onto the next bucket once the first bucket is healthy
+        - Application is running below capacity
+        - Can set the bucket size
+        - Application is running both versions simultaneously
+        - No additional cost
+        - Long deployment
+    - Rolling with additional batches: like rolling, but spins up new instances to move the batch (so that the old application is still available)
+        - Application is running at capacity
+        - Can set the bucket size
+        - Application is running both versions simultaneously
+        - Small additional cost
+        - ADditional batch is removed at the end of the deployment
+        - Longer deployment
+        - Good for prod
+    - Immutable: spins up new instances in a new ASG, deploys version to these instances, and then swaps all the instances when everything is healthy
+        - Zero downtime
+        - New code is deployed to new instances on a temporary ASG
+        - High cost, double capacity
+        - longest deployment
+        - quick rollback in case of failures (just terminate new ASG)
+        - great for prod
+    - Blue/Green: zero downtime. Create a new stage environment and deploy v2 there. The new environment (green) can be valdiated independently and roll back if issues. Route 53 can be setup using weighted policies to redirect a little bit of traffic to the stage environment. Using Beanstalk, swap URLs when done with the environment test. Think of it Like A/B testing
+- Elastic Beanstalk CLI: called EB cli makes working with beanstalk from cli easier
+    - its helpful for automated deployment pipelines
+- Beanstalk lifecycle policy
+    - can store at most 1000 application versions. if you dont remove old versions, you wont be able to deploy anomore
+    - To phase out old application versions, use a lifecycle policy
+        - Based on time
+        - Based on space
+    - Versions that are currently used wont be deleted
+- Beanstalk extensions
+    - all the parameters set in the beanstalk UI can be configured with code using files
+    - `.ebextensions/` directory in the root of source code
+    - yaml/json format
+    - .config extensions (example: logging.config)
+    - able to modify some deafault settings using: option_settings
+    - ability to add resources such as RDS, ElastiCache, DynamoDB, etc
+    - Resources managed by .ebextensions get deleted if the envrionment goes away
+- Under the hood, beanstalk relies on cloudformation to provision other AWS services
+- Elastic beanstalk can clone an environment with the exact same configuration. All resources and configuration are preserved this is useful for testing
+- beanstalk migration
+    - Load balancer
+        - After creating an elastic beanstalk environment, you cannot change the elastic load balancer type
+        - to migrate:
+            - create a new environemnt with the same configuration except LB (cant clone)
+            - deploy your application onto the new environment
+            - perform a CNAME swap or Route 53 update
+    - RDS
+        - RDS can be provisioned with beanstalk
+        - this is not great for prod as the database lifecycle is tied to the beanstalk environment lifecycle
+        - the best for prod is to seperately create an RDS database and provide our EB applicaion with the connection string
+        - Decouple RDS
+            - Create a snapshot of RDS DB (as a safeguard)
+            - Go to the RDS console and protect the RDS database from deletion
+            - create a new Elastic Beanstalk application, without RDS, point your application to existing RDS
+            - perform a CNAM swap or Route 53 update, confirm working
+            - terminate the old environment (RDS wont be deleted)
+            - delete cloudformation stack
+- Beanstalk and Docker
+    - single docker container
+        - either provide
+            - Dockerfile: elastic beanstalk will build and run the docker container
+            - Dockerrun.aws.json
+        - beanstalk in single docker container does not use ECS. It uses EC2
+    - multi docker container
+        - multi docker helps run multiple containers per EC2 instance in EB
+        - this will create: ECS cluster, Ec2 instances configured to use the ECS cluster, load balancer (in high availability mode), task definitions and exection
+        - requires a config Dockerrun.aws.json (v2) at the root of the source code
+        - Dockerrun.aws.json is used to generate the ECS task definition
+        - your docker images must be pre-built and stored in ECR
+- Beanstalk and Https
+    - beanstalk with https
+        - Load the SSL certificate onto the load balancer
+            1. can be done from the console (EB console, load balancer configuration)
+            2. can be done from the code: .ebextensions/securelisterner-alb.config
+        - ssl certificate can be prvisioned using ACM (AWS certificate manger) or cli
+        - must configure a security group rule to allow incoming prot 443 (HTTPS port)
+    - beanstalk redirect http to https
+        - configure your instances to redirect http to https
+        - or configure the Application Load Balancer (ALB only) with a rule
+        - make sure health checks are not redirected
+- Web server vs worker environment
+    - if the application performs tasks that are long to complete, offload these tasks to a dedicated environment. Decoupling your application into two tiers is common. Ex: processinga video, generating a zip fle etc. You can degine periodic tasks in file cron.yaml
+        - Web tier = elb + ec2 sends request to worker tier = sqs + ec2
+- Beanstalk custom platform: is used when language is incompatible with beanstalk & doesn't use Docker. Opertaing system and other additional software can be defined when using this
+    - To create own platform. Define AMI using Platform.yaml and build the platform using the Packer software
+    - Custom image is to tweak an existing beanstalk platform
+    - custom platform is to create an entirely new beanstalk platform
+- Hands On
+    - Beanstalk first environment
+        - Beanstalk console -> get started -> create application
+            - Events: shows details creating application
+            - Logs: show applicaition logs
+            - Health: shows health of environment
+            - Monitoring: CPU utilization, network in/out
+            - Alarms
+            - Managed updates: if there are platform updates
+    - Beanstalk second environment
+        - In application create new environment -> webserver environment -> evnronment can name according to dev or prod -> configure more options -> select configuration presets -> (load balancer cannot be changed later on) -> create environment
+    - Deployment Modes
+        - Beanstalk console -> configuration
+    - Lifecycle
+        - Beanstalk console -> application versions -> settings -> set lifecycle rule -> save
+    - Clone
+        - environemnt actions -> clone environment
+    - Docker
+        - beanstalk console -> application -> web server environment -> platform: docker -> create
