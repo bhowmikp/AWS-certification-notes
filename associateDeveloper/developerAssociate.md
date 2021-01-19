@@ -1045,3 +1045,113 @@
         - environemnt actions -> clone environment
     - Docker
         - beanstalk console -> application -> web server environment -> platform: docker -> create
+
+## AWS CI/CD
+
+- AWS CodeCommit: storing our code. Same as github
+    - used for version control
+    - code only in AWS Cloud account => increased security and compiance
+    - secure (encrypted, access control, etc)
+    - encrypted at rest using KMS and encrupted in transit using HTTPS
+    - Authorization is done using IAM policies
+    - Authentication is done through SSH Keys, AWS CLI authentication helper, MFA
+    - to give someone access to repo use STS and IAM role
+    - codecommit can integrate with AWS SNS or AWS Labda or AWS Cloudwatch for notifications
+        - Cloudwatch event rules: for PRs and comment
+        - SNS / Lambda: for deletion, pushes to master
+    - SSH keys and HTTPS is supported
+    - CodeStar vs CodeCommit
+        - CodeStar is an integrated solution that regroups: Github, CodeCommit, CodeBuild, CodeDeploy, CloudFormation, CodePipeline, CloudWatch
+        - Helps quicly create "CICD-ready" projecst for EC2, Lambda, Beanstalk
+        - Issue tracking integration with: JIRA / Github issues
+        - Free service, pay only for the underlying usage of other services
+        - Limited customization
+        - Cloud9 Web based ide
+- AWS CodePipeline: automating our pipeline from code to ElasticBeanstalk
+    - visual workflow
+    - continuous delivery
+    - made of stages: each stage can have sequentials actions and/or parallel actions. Manual approval at any stage
+    - Artificats
+        - each pipeline stage can create "artificats"
+        - artificats are passed stored in AWS S3 and passed on to the next stage
+    - CodePipeline state changes happen in AWS CloudWatch Events, which can in return create SNS notifications. Ex: can created events for failed pipelines or cancelled stages
+    - Stages can have multiple action group
+    - There can be sequential and parallel action groups in stages
+- AWS CodeBuild: building and testing our code. Same as CircleCI
+    - used for Build and Test
+    - managed build service
+    - pay for usage: time it takes to complete the builds
+    - leverages docker under the hood for reproducible builds
+    - possibility to extend capabilities leveraging our own base docker images
+    - secure: integration with KMS for encryption of build artificats, IAM for uilb permissions, VPC for network security, CloudTrail for logging
+    - Build instructions can be defined in code (buildspec.yml file)
+    - Outputs logs to AWS S3 & Cloudwatch Logs
+        - Cloudwatch Alarms can be used to detect failures and trigger notifications
+        - CloudWatch events / AWS lambda as a glue
+        - SNS notifications
+    - Builds can be defined within codepipeline or code build
+    - Buildspec.yml
+        - Define env variables: plaintext variables, secure secrets
+        - Phases (commands to run)
+            - install
+            - pre build: final commands to execute before build
+            - build
+            - post build: finishing touches (zip output for example)
+        - Artifacts: what to upload to S3 (encrypted with KMS)
+        - Cache: Files to cache (usually dependencies) to S3 for future build speedup
+    - VPC
+        - CodeBuild container outside VPC by default. Thereform cannot access resources in VPC
+        - You can specify: VPC ID, Subnet IDs, Security Group IDs
+        - Then your build can access resources in VPC like RDS, ElastiCache, EC2, ALB..
+        - Use cases: integration tests, data query, internal load balancers
+- AWS CodeDeploy: deploying the code to EC2 fleets (not Beanstalk)
+    - we want to deploy our application automatically to many (100s) EC2 instances. These instances are not managed by Elastic Beanstalk. There are several ways to handle deployments using open source tool ex terraform
+    - How it works
+        - Each EC2 machine must be running CodeDeploy Agent
+        - The agent is continuously polling AWS CodeDeploy for work to do
+        - CodeDeploy sends appspec.yml file. This file has to be at root of source code
+        - Application is pulled from GitHub or S3
+        - EC2 will run deployment instructions
+        - CodeDeploy Agent will report of success/failure of deployment on the instance
+    - Appspec.yml
+        - Filesection: how to source and copy from S3/Github to filesystem
+        - Hooks: set of instructions to do to deploy the new version (hooks can have timeouts). The order is:
+            - ApplicationStop
+            - DownloadBundle
+            - BeforeInstall
+            - AfterInstall
+            - ApplicationStart
+            - ValidateService
+    - Deployment Config
+        - Configs
+            - One a time
+            - Half at a time 50%
+            - All at once
+            - Custom
+        - Failures
+            - Intances stay in "failed state"
+            - New deployments will first be deployed to "failed state" instances
+            - To rollback: redeploy old deployment or enable automated rollback for failures
+        - Deployment Targets
+            - Set of EC2 instances with tags
+            - Directly to an ASG
+            - Mix of ASG/Tags so you can build deployment segments
+            - Customization in scripts with DEPLOYMENT_GROUP_NAME environment variables
+    - CodeDeploy + ASG
+        - In-place updates
+        - Blue/Green deployment
+- Hands on
+    - CodeCommit
+        - codecommit console -> create repo
+        - how to create notifications: settings -> code commit -> repository -> settings -> notifications -> create notification rule -> submit
+        - create trigger: settings -> code commit -> repository -> settings -> triggers -> create trigger -> submit
+        - push code directly to codecommit without using ui: iam -> users -> security credentials -> ssh keys for codecommit -> clone url
+    - Code pipeline
+        - code pipeline console -> create service role which is an iam role, select source provider it can be github as well -> create pipeline
+    - Code Build
+        - code build console -> create project -> create build project. Put buildspec.yml in root of codebase. Codepipeline edit -> add stage -> add codebuild project made earlier
+        - VPC: edit -> environment -> additional information -> vpc -> select vpc, subnet, security group
+    - CodeDeploy
+        - IAM -> roles -> service role for codedeploy. IAM -> roles -> service role for EC2 -> s3 read only access. Codedeploy console -> create deployment (assuming there are EC2 instances running with code deploy agent. Add tag with Key : environment, value: dev/prod) -> create deployment group
+    - CodeStar
+        - CodeStar console -> create project -> project template
