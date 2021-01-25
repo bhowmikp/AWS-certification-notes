@@ -1155,3 +1155,96 @@
         - IAM -> roles -> service role for codedeploy. IAM -> roles -> service role for EC2 -> s3 read only access. Codedeploy console -> create deployment (assuming there are EC2 instances running with code deploy agent. Add tag with Key : environment, value: dev/prod) -> create deployment group
     - CodeStar
         - CodeStar console -> create project -> project template
+
+## CloudFormation
+
+- Cloudformation is a declarative way of outlining your AWS Infrastructure for any resources
+    - Cloudformation creates items specified in template in the right order with the excat configuration that is specified
+    - Benefits
+        - Infrastructure as code. No resources manually created. Can be version controlled with git. Infrastructure can be reviewed through code
+        - Productivity. Ability to detroy and recreate infrastructure easily. Automated generation of Diagram for your templates. Declarative programming, no need to figure out ordering and orchestration
+        - Seperation of concern. Create many stacks for many apps and many layers
+    - Templates have to uploaded in S3 and then referenced in cloudformation. To update a templete, we cant edit previous ones. We have to re-upload a new version of the template to AWS
+    - Templates can be edited manually in Cloudformation Designer. Or done the automated way by editing YAML files
+    - Template components
+        - Resources: your AWS resources declared in the template
+        - Parameters: the dynamic inputs for your templates
+        - Mappings: the static variables for your template
+        - Outputs: References to what has been created
+        - Conditionals: List of conditions to perform resource creation
+        - Metadata
+    - Template helpers
+        - References
+        - Functions
+- Cloudformation is smart and determines the oder infrastructure can be created/updated/detroyed looking at the requirements in the yaml file. Ie the yaml file can have the resoruces specified in the wrong order but cloudformation will still be able to build the infrastructure
+- YAML and JSON are the languages you can use for Cloudformation. YAML is the preferred way
+    - YAML has key value pairs, nested objects, support arrays, multi line strings, can inclue comments
+- CloudFormation Resources
+    - Resources are the core of your CloudFormation template
+    - They represent the different AWS Components that will be created and configured
+    - Resources are declared and can reference each other
+    - AWS figures out creation, updates and deletes of resources for us
+    - Form: `AWS::aws-product-name::data-type-name`
+    - Check out `AWS Resource Type Reference` doc
+- Cloudformation Parameters
+    - Parameters are a way to provide inputs to your AWS coludformation template
+    - They are important: reuse templates across the company, some inputs cannot be determined ahead of time
+    - if a parameter is used we dont need to reupload template. Parameters are type defined
+    - `Fn::Ref` function can be leveraged to reference parameters. Parameters can be used anywhere in a template. Shorthand for this in YAML is `!Ref`
+    - Pseudo parameters: these are parameters used by AWS and can be used anytime and enabled by default. Ex AWS::AccountID
+- CloudFormation Mapping
+    - Mappings are fixed variables within your CloudFormation Template
+    - They are handy to differentiate between different environment, regions, AMI types etc
+    - All the values are hardcoded within the template
+    - Mapping vs Parameter
+        - Mappings are great when you know in advance all the values that can be taken and that they can be deduced from variables
+        - They allow safer control over the template
+        - Use parameters when the values are really user specific
+    - Access Mapping Values
+    - Long hand `Fn::FindInMap`. Short hand `!FindInMap [MapName, TopLevelKey, SecondLevelKey]`
+- Cloudformation outputs
+    - The outputs section declares optional outputs values that we can import into other stacks (if you export them first)
+    - you can also view the outputs in the aws console or in using the aws cli
+    - they're very useful for example if you define a network CloudFormation, and output the variables such as VPC ID and your Subnet IDs
+    - Its the best way to perform some collaboration cross stack, as you let expert handle their own part of the stack
+    - Cannot delete a CloudFormation Stack if its outputs are being referenced by another CloudFormation stack
+    - Long Hand`Fn::ImportValue`, Short hand `!ImportValue [value]`
+- CloudFormation Conditions
+    - Conditions are used to control the creation of resources or outputs based on a condition
+    - Conditions can be whatever you want them to be, but common ones are: environment (dev/test/prod), aws region, any parameter value
+    - Each condition can reference another condition, parameter value or mapping
+    - Logical Functions: Fn::And, Fn::Equals, Fn::If, Fn::Not, Fn::Or
+    - Conditions can be applied to resources/outputs etc
+- Intrisic Functions: 
+    - Fn::Ref: can be leveraged to reference. Only get id information
+    - Fn::GetAtt: attributes are attached to any resources you create. To know the attributes of your resources, the best place to look is at the documentation
+    - Fn::FindInMap: return a named value from a specific key
+    - Fn::ImportValue: import values that are exported in other templates
+    - Fn::Join: join values with a delimeter
+    - Fn::Sub: used to substitute variables from a text. Allows you to fully customize your templates
+    - Condition Functions
+- CloudFormation Rollback
+    - Stack Creation Fails
+        - Default: everything rolls back (get deleted). We can look at the log
+        - Option to disable rollback and troubleshoot what happened
+    - Stack Update Fails
+        - The stack automatically rolls back to the previous known working state
+        - Ability to see in the log what happened and error messages
+- ChangeSets: when you update a stack, we need to know what changes will happen before it happens for greater confidence
+    - Changesets wont say if the update will be successful
+- Nested stacks: are stacks of other stacks. They allow you to isolate repeated patters/common components in seperate stacks and call from other stacks
+    - To update a nested stack, always update the parent (root stack)
+- Cross vs Nested stack
+    - Cross stacks: helpful when stacks have different lifecycles
+    - Nested stacks: helpful when components must be re-used. Nested stack is only important to the higher level stack
+- Stacksets: create, update, or delete stacks across multiple accounts and regions with a single operation
+    - Administrator account to create StackSets
+    - Trusted accounts to create, update, delete stack instances from StackSets
+    - When you update a stack, all associated stack instances are updated throughout all accounts and regions
+- Hands on
+    - First template to create ec2 instance
+        - cloudformation console -> create stack with new resources -> template is ready -> upload template file -> create stack. Resources tab to see everything that was created. Template tab to look at template and over here in designer tab we can see drawing
+    - Update and Delete
+        - cloudformation console -> select stack -> click update -> replace current template -> upload new file -> at the final page we can see change set preview which states what needs to be updated/changed -> update stack. To delete select stack and click delete, this will delete everything in the stack
+    - Rollback
+        - cloudformation console -> upload template -> stack creation options -> rollback failure (enable: everything will be rollbacked /disable: nothing will be rollbacked)
