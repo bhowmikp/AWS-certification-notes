@@ -1379,3 +1379,146 @@
             - to verify iam has access -> go to ec2 instance iam role -> check policies and look for AWSElasticBeanstalkWebTier -> check X-Ray service here and see it has all the necessary permissions
     - CloudTrail
         - cloudtrail console -> event history -> view event
+
+## AWS Integration & Messaging
+
+- Two patterns of application communication
+    - Synchronous communications (application to application)
+        - Problematic if there are sudden spikes of traffic. in that case decouple application
+    - Asynchronous / Event based (application to queue to application)
+- Decouple applications:
+    - SQS: queue model
+    - SNS: pub/sub model
+    - Kinesis: real-time streaming model
+- SQS
+    - Producer (many to one) sends messages to SQS Queue which is polled by comsumer(many to one SQS). SQS acts as a buffer between producers and consumers
+    - **Standard Queue**
+        - oldest offering
+        - fully managed service, used to decouple applications
+        - Attributes
+            - Unlimited throughput, unlimited number of messages in queue
+            - Default retention of messages: 4 days, maximum of 14 days
+            - Low latency (<10 ms of publish and receive)
+            - Limitation of 256KB per message sent
+            - Can have duplicate messages (at least once delivery, occassionaly). So when writing an application this needs to be accounted for
+            - Can have out of order messages (best effort ordering)
+        - Producers
+            - send to SQS using SendMessage API
+            - message is persited in SQS until consumer deletes it. Message retention times still apply
+        - Consumers
+            - can be running on EC2 instances, servers or Lambda
+            - polls SQS for messages (receive up to 10 messages at a time)
+            - should delete the messages using DeleteMessage API
+            - consumers can be used with ASG to horizontally scale. The ASG can scale based on cloudwatch metric - QueueLength which can send an alarm in CloudWatch Alarm which will trigger ASG to scale up or down
+        - Concepts
+            - **Message Visibility Timeout**: after a message is polled by a consumer, it becomes invisible to other consumers. By default it is 30 seconds. This means the message has 30 seconds to be processed. If the message is not deleted after the 30 seconds it will become visible again in the SQS and can be returned to another consumer
+                - If a consumer is processing a message and will need a little more time to finish processing then a consumer can call ChangeMessageVisibility API to get more time
+                - If visibility is high (hours) and consumer crashes, re-processing will take time
+                - If visibility timeout is too low (seconds), we may get duplicates
+            - **Dead Letter Queue**: useful for debugging. Messages are sent here when messages arent successfully processed
+                - if a consumer fails to process a message within the Visibility Timeout it goes back into the queue. We can set a threshold of how many times a message can go back into the queue
+                - after MaximumReceives threshold is exceeded, the message goes into a dead letter queue
+                - DLQ should have retention time of 14 days. To give ample time to debug
+            - **Delay Queue**: delay a message (consumers dont see it immediately) up to 15 minutes
+                - Default is 0. Can set a default at a queue level. Can also override the default on send using the DelaySeconds parameter
+            - **Long Polling**: when a consumer requests messages from the queue, it can optionally "wait" for messages to arrive if there are none in the queue. It decreases the number of API calls made to SQS while increasing the efficiency and latency of applicaiton. Can set wait time 1 sec to 20 sec (20 sec preferable). Long Polling is preferable to Short Polling. Can be enabled at the queue level or at the API level using WaitTimeSeconds
+            - **SQS Extended Client**: send large messages (>256kb). Example 1 GB
+                - use AWS S3 bucket. Producer sends large message to AWS s3 and also sends small metadata message containing pointer to s3 bucket to sqs. When consumer reads the small metadata message it will go retrive the large message from s3
+            - Batch APIs for SendMessage, DeleteMessage, ChangeMessageVisibility are available to help decrease cost
+    - **FIFO Queue**:
+        - first in first out ordering
+        - Limited throughput: 300 msg/s without batching; 3000 msg/s with batching
+        - Exactly-once send capability (by removing duplicates)
+        - Messages are processed in order by the consumer
+        - Concepts
+            - Deduplication: if same message sent twice within 5 min then second message refused
+                - Content based deduplication: will do SHA-256 hash of the message body
+                - Explicitly provide a Message Deduplication ID
+            - Message Grouping
+                - if you specify the same value of MessageGroupID in an SQS FFO queue, you can only have one consumer and all the messages are in order
+                - To get ordering at the level of a subset of messages, specify different values for MessageGroupID
+                    - Each group ID can have a different consumer (parallel processing)
+                    - Messages that share a common Message Group ID will be in order within the group
+                    - use this when we care about group ordering but not overall ordering
+    - Security
+        - Encryption
+            - in-flight using HTTPS API
+            - at-rest using KMS keys
+            - Client-side encryption if the client wants to perform encryption/decryption itself
+        - Access Controls: IAM policies to regulate access to SQS API
+        - SQS Access Policies (similar to S3 bucket policies)
+- SNS
+    - event producer only sends message to one SNS topic
+    - as many event receivers (subscriptions) as we want to listen to the SNS topic notifications. Upto 10 million
+    - each subscriber to the topic will get all the messages (can filter)
+    - How to publish
+        - Topic publish (using the SDK): create a topic -> create a subscription (or many) -> publish to the topic
+        - Direct publish (for mobile apps SDK): create a platform application -> create a platform endpoint -> publish to the platform endpoint
+    - Security: in flight encryption default, at rest with KMS, client side encryption but needs to be set up. Access controls with IAM. SNS access policies
+- SNS + SQS: Fan Out
+    - push once in SNS, receive in all SQS queues that are subscribers
+    - fully decoupled, no data loss
+    - SQS allows for: data persistence, delayed processing and retries of work
+    - Ability to add more SQS subscribers over time
+    - Make sure your SQS queue access policy allws for SNS to write
+    - SNS cannot send messages to SQS FIFO queues (AWS Limitation)
+    - Application: send S3 events to multiple queues then use this pattern
+- Kinesis
+    - is a managed alternative to Apache Kafka. Big data application tool to get application logs, metrics, IoT, clickstreams
+    - Great for "real-time" big data. Allows to quickly onboard data in mass in real time from big data use case through analytics to where we store 
+    - Data is automatically replicated to 3 AZ
+    - Composed of:
+        - **Kinesis Streams**: low latency streaming ingest at scale
+            - streams are divided in ordered Shards / Partictions. Shards can me thought of as one level queue. To increase thorughput just increase number of shards
+            - Data retention is one day by default, can go up to 7 days. Short time because kinesis is just a tool to quickly move big data to analyze and store
+            - Ability to reprocess / replay data
+            - Multiple applications can consume the same stream
+            - Real time processing with scale of throughput
+            - Once data is inserted in Kinesis, it can't be deleted
+            - Stream shards
+                - Stream is made of many shards
+                - 1 MB/s write per SHARD, 2 MB/s read per shard. Billing is per shard provisioned.
+                - Number of shards can evolve over time so sometime of autoscaling is recomended
+                - Records are ordered per shard
+            - Put records
+                - Producer sided on how to put data. Same key goes to the same partition which is determine using the message key.
+                - Choose a partition key that is highly distributed (helps prevents hot partition
+                    - user_id if many users
+                    - Not country_id if 90% of the users are in one country
+            - ProvisionedThroughputExceeded Solutions: retries using backoff, increase shards, ensure partition key is a good one
+            - Consumer can use cli or Kinesis Client Library(KCL) using DynamoDB
+        - **Kinesis Analytics**: perform real-time analytics on streams using SQL
+            - Autoscaling, managed, continuous
+            - can create streams out of the real time queries
+        - **Kinesis Firehose**: load streams into S3, Redshift, ElasticSearch
+            - fully managed service, no adminstration
+            - near real time
+            - load data into redshift, aws s3, splunk, elasticSearch
+            - Automatic scaling
+    - **Kinesis KCL**: Java library that helps read record from a kinesis streams with distributed applications sharing the read workload
+        - Rule: each shard is to be read by only one KCL instance. Therefore, ex 4 shards = max 4 KCL instances
+        - Progress is checkpointed into DynamoDB
+        - KCL can run on EC2, Elastic Beanstalk or on Premise Application
+        - Records are read in order at the shard level
+    - Security: in flight encryption default, at rest with KMS, client side encryption but needs to be set up difficult. VCP endpoints available for Kinesis to access within VPC
+- SQS vs SNS vs Kinesis
+    - SQS: consumer pull data, data is deleted after being consumed, can have as many workers as we want, no need to provision throughput, no ordering gurantee (except FIFO), individual message delay capability
+    - SNS: push data to many subscribers, up to 10 million subscribers, data is not persisted (lost if not delivered), pub/sub, up to 100000 topics, no need to provision throughput, intergrates with SQS for fan out architecture pattern
+     Kinesis: consumers pull data, as many consumers as we want, possibility to replay data, meant for real time big data/analytics/ETL, ordering at the shard level, data expires after X days, must provision throughput
+- SQS Fifo and Kinesis although seems similar in hindsight are different and have their unique set of advantages and disadvantages
+- Hands On
+    - SQS
+        - General
+            - SQS console -> create queue -> standard -> name -> create
+            - send and receive messages -> message body (can set attributes) -> send message -> poll messages and not the message can be seen -> to be done with the message delete it. This indicates to SQS that the message has been processed
+            - purging queue means deleting all the messages in the queue
+        - Dead Letter Queue
+            - make a queue with retention period of 14 days -> go to original queue and in dead-letter-queue set options and choose the previously made DLQ
+        - Delay Queue
+            - create queue with an updated delivery time
+        - Long Polling
+            - Receive message wait time field should be modified for this
+        - FIFO
+            - create queue -> FIFO -> name have to end with .fifo -> (content based deduplication: remove same message sent within a 5 min window) -> create
+    - SNS
+        - sns console -> create topic -> create subscription, select protocol, endpoint, confirm -> publish message
