@@ -1522,3 +1522,251 @@
             - create queue -> FIFO -> name have to end with .fifo -> (content based deduplication: remove same message sent within a 5 min window) -> create
     - SNS
         - sns console -> create topic -> create subscription, select protocol, endpoint, confirm -> publish message
+
+## Lambda
+
+- Serverless does not mean there are no servers it means you just dont manage / provision/ see them. Severless in AWS: lambda, dunamoDV, cognito, api gateway, s3, sns & sqs, fargate etc.
+- General lambda info
+    - Virtual functions - no servers to manage
+    - Limitede by time - short executions about 15 min max
+    - Run on-demand
+    - Scaling is automated
+    - Benefits
+        - Easy pricing: pay per request and compute time
+            - Billed at increments of 100 ms
+        - Integrated with the whole AWS suite of services
+            - Api gateway: create rest api and invoke lambda functions
+            - kinesis: invoke lambda to do data transformations on the fly
+            - dynamoDB: trigger lambda when something changes
+            - s3
+            - cloudfront: lambda at edge
+            - cloudwatch events eventbridge: codepipeline state changes automation. Can be used to make cron jobs
+            - cloud watch logs
+            - sns
+            - sqs
+            - cognito: user log in to database
+        - Integrated with many programming languages: NodeJs, python, java, C#, Golang, Ruby, Custom rutime api like rust, but docker does not work for lambda its for ECS and fargate
+        - Easy monitoring through AWS CloudWatch
+        - Easy to get more resources per functions
+        - Increasing RAM will also imrpove CPU and network
+- Lambda function is name of file. Lambda handler corresponds to the function that should be executed
+- Synchronous Invocations: code is executed in sequence
+    - Synchronous: CLI, SDK, API, Gateway, ALB
+        - Results is returned right away
+        - Error handling must happen client side (retries, exponential backoff, etc...)
+    - Anything user invoked is synchronous
+- Lambda integration with ALB
+    - to expose a lambda function as an HTTP(S) endpoint ALB (or API Gateway) can be used
+    - to do this the function must be registered in a target group
+    - ALB to lambda the Http request from client gets converted to JSON and vice versa for lambda back to ALB
+    - ALB can support multi header values which are multiple query parameters. In that instance queryStringParameters gets passed to lambda as an array
+- Lambda @ Edge
+    - Deploy lambda functions alongside Cloudfront CDN
+    - lambda can be used to change cloudfront requests and responses and this can be used to make global applications. Example: use visits site and gets content from s3 and dynamic api requests go to cloudfront for cached responses. Lambda runs in each Cloudfront edge globally and can query data from dynamodb which is a global database
+    - Use cases: website security and privacym dynamic web application at edge, SEO, bot mitigation, A/B testing, User authentication and authorizationm user tracking
+    - lambda can modify following requests
+        - viewer request: viewer to cloudfront
+        - origin request: cloudfront to orign
+        - origin response: origin to cloudfront
+        - viewer response: cloudfront to viewer
+- Asynchronous Invocations: service that are invoked behind the scenes like s3, sns, cloudwatch events
+    - Asynchronous request goes into lambda service. It is then placed in an internal event queue and lambda function reads from this event queue.
+        - If something goes wrong then their are 3 retries. 1st one minute after wait then 2 minutes after wait
+        - if the function is retried then there will be duplicate entries in Cloudwatch logs
+        - can define DLQ (dead letter queue) - sns or sqs
+        - asynchronous invocation allow you to speed up the processing if you dont need to wait for the result
+    - Follow are asynchronous services: s3, sns, cloudwatch events/eventbridge, codecommit, codepipeline, logs, ses etc
+    - best way to see if async event executed is through cloudwatch logs
+- CloudWatch Event / EventBridge with Lambda
+    - Can be used to make CRON job or make codepipeline eventbridge rule
+- S3 Event notification with Lambda
+    - motified when object created, removed, restored, replicated. Object name filtering is possible
+    - if two writes are made to a single non-versioned object at the same time, it is possible that only a single event notification will be sent. If you want to ensure that an event notification is sent for every successful write, then enable versioning for bucket
+- Event source mapping: reads from an event source and invokes a Lambda function
+    - applies to: kinesis data streams, sqs & sqs FIFO queue, dynamoDb streams
+    - common denominator: records need to be polled from the source
+    - in this case lambda function is invoked synchronously
+    - it works by lambda internally polling kinesis and once it has data lambda executes the task
+    - streams and lambda (kinesis & dynamoDb)
+        - event source mapping creates an iterator for each shard, processes items in order
+        - start with new items from the beginning or from timestamp
+        - processed items arent removed from the stream (other consumers can read them)
+        - low traffic: use batch window to accumulate records before processing
+        - you can porcess multiple batches in parallel
+        - by default, if your function returns an error, the entire batch is reprocessed until the function succeeds, or the items in the batch expire
+            - to ensure in-order processing, processing for the affected shard is paused until the error is resolved
+        - one lambda invocation per shard. If you use parallelization, tp to 10 batches processed per shard simultaneously
+    - queues (sqs and sqs fifo)
+        - event source mapping will poll sqs (long polling)
+        - to use DLQ then set up on the SQS queue, not Lambda (DLQ for Lambda is only for async invocations). or use lambda destination for failures
+        - for standard queues, items arent necessarily processed in order. Lambda scales up to process a standard queue as quickly as possible
+        - for fifo queues, messages with same groupId will be processed in order. The lambda function scales to the number of active message groups
+        - lambda deletes items from the queue after they're successfuly processed
+- Lambda destinations
+    - destinations allow us to define destinations for successful and failed event of
+        - **asynchronous invocations** to sqs/sns/lambda/eventbridge
+            - aws recommends you use destinations instead of DLF now (but both can be used at the same time)
+        - **event source mapping**: discarded event batches to sqs, sns
+            - you can send events to a DLQ directly from SQS
+- Lambda IAM
+    - Execution role grants the Lambda function permissions to AWS services/resources
+    - If the lambda is invoked by other services then give Resource based policies
+- Lambda Environment variables
+    - Key value pair in string from. Adjust function behaviour without updating code
+    - Helpful to store secret in KMS. Secrets can be encrypted by the Lambda service key, or your own CMK
+- Lambda Logging & Monitoring
+    - Cloudwatch logs: lambda execution logs are stored in AWS Cloudwatch logs
+    - Cloudwatch metrics: metrics are displayed in AWS Cloudwatch metrics. Shows invocations, durations, concurrent executions, error count, success rate etc
+    - X-ray: enable in lambda configuration (Active tracing). Runs x-ray deamon for you. use x-ray sdk in code. Ensure lambda function has a correct IAM Execution Role. There are environment variables to communicate with X-Ray
+- Lambda in VPC
+    - By default Lambda function is launched outside of your VPC. Therefore it cannot access resources in your VPC
+        - To deploy lambda in VPC: define the VPC ID, the Subnets and the security groups
+        - Lambda will create an ENI (Elastic Network Interface) in your subnets. This is not something we need to manage but done when we assign execution role
+        - AWSLambdaVPCAccessExecutionRole
+    - A lambda function in your VPC does not have internet access
+        - Deploying a lambda function in a private subnet gives it internet access if you have a NAT Gateway / Instance
+        - ![Lambda in VPC](./LambdaInVPC.PNG)
+    - Deploying a Lambda function in a public subnet does not give it internet access or a public IP
+- Lambda Function Configuration
+    - RAM: from 128MB to 30008MB in 64MB increments. The more RAM you add, the more vCPU credits you get.
+        - at 1792MB 1 vCPU. If greater multiple then code needs to use multi-threading to get benefits
+        - If your application is CPU-bound (computation heavy), increase RAM
+    - Timeout: default 3 seconds, maximum is 900 seconds (15 minutes)
+    - The execution context is a temporary runtime environment that initializes any external dependencies of your lambda code. Great fpr database connections, Http clients etc
+        - execution context is maintained for some time in anticipation of another lambda function invocation
+        - the execution context includes /tmp directory where you can write files and they will be available across executions
+    - initialzie ouside of function/handler then it can be re-used across executions
+    - /tmp space: if lambda function needs to download a big file to work or needs disk space to perform operations use this directory
+        - max size 512 mb
+        - the directory content remains when the execution context is frozen providing transient cache that can be used for multiple invocations
+        - for permanent persistence of object (non temporary), use S3
+- Lambda concurrency
+    - concurrency limit: up to 1000 concurrent executions
+    - can set a "reserved concurrency" at the function level (=limit)
+        - each invocation over the concurrency limit will trigger a "throttle"
+            - if synchronous invocation => return ThrottleError - 429
+            - if asynchronous invocation => retry automatically and then go to DLQ
+    - if you dont reserve concurrency other functions can get throttled because concurrency limit is account based
+    - Asynchronous invocations
+        - if the function doesnt have enough concurrency available to process all events, additional requests are throttled
+        - for throttling errors and system errors, lambda returns the event to the queue and attempts to run the function again for up to 6 hours. The retry interval increases exponentially from 1 second after the first attempt to a maxium of 5 minutes
+    - Cold start
+        - new instance => code is loaded and code outside te handler run
+        - first request served by new isntances has higher latency than the rest
+    - Provisioned concurrency
+        - concurrency is allocated before the function is invoked (in advance)
+        - so the cold start never happens and all invocations have low latency
+        - Application Auto scaling can manage concurrency (schedule or target utilization)
+- Lambda function dependencies
+    - need to install the packages alongside your code and zip it together
+    - upload the zip straight to Lambda if less than 50MB, else to S3 first
+    - native libraries work they need to be compiled on Amazon Linux
+    - AWS SDK comes by default with every Lambda function
+- Lambda and Cloudformation 
+    - inline
+        - can write lambda code in cloudformation file
+        - inline functions are very simple
+        - use the Code.ZipFile property
+        - cannot include function dependencies with inline functions
+    - S3
+        - store lambda zip in s3
+        - refer the s3 zip location in the Cloudformation code
+            - S3 bucket
+            - s3Key: full path to zip
+            - s3ObjectVersion: if versioned bucket
+        - if you dont update the code in S3, but dont update S3Bucket, S3Key or S3ObjectVersion, CloudFormation wont update your function
+- Lambda Layers
+    - **custom runtimes**: languages that are not meant for lambda initially but the community has decided to support. Ex: C++, Rust
+    - **externalize dependencies to re-use them**
+- Lambda Container Images
+    - Deploy lambda function as container images of up to 10 gb from ecr
+    - pack complex dependencies, large dependencies in a container
+    - base images are available for python, node.js, Java, .NET, Go, Ruby
+    - Test the containers locally using the Lambda Runtime Interface Emulator
+- Lambda Versions and Aliases
+    - when you work on a lambda function, we work on $LATEST
+    - when we're ready to publish a Lambda function, we create a version
+        - version are immutable
+        - versions have increasing version numbers
+        - versions get their own ARN (Amazon resource number)
+        - Each version of the lambda function can be accessed
+    - lambda Aliases
+        - aliases are pointers to lambda function versions
+        - we can define a dev, test, prod aliases and have them point at different lambda versions
+        - Aliases are mutable
+        - aliases enable blue / green deployment by assigning weights to lambda functions
+        - aliases cannot reference aliases
+- Codedeploy
+    - cam help automate traffic shift for Lambda alias
+    - Feature is integrated within the SAM framework
+    - Strategy
+        - Linear: grow traffic every N minutes until 100%
+        - Canary: try X percent then 100%
+        - AllAtOnce: immediate
+    - Can create Pre & Post traffic hooks to check the health of the Lambda function
+- Lambda limits to know per region
+    - Execution:
+        - Memory allocation: 128 mb - 10 gb (64 mb increments)
+        - Maximum execution time: 900 seconds (15 minutes)
+        - Environment variables: 4kb
+        - Disk capacity in the function container (/tmp): 512 mb
+        - concurrency executions: 1000 (can be increased)
+    - Deployment:
+        - lambda function deployment size (compressed .zip): 50mb
+        - size of uncompressed deployment (code + dependencies): 250 mb
+        - can use the /tmp directory to load other files at startup
+        - size of environment variables: 4 kb
+- Best practices
+    - Perform heavy duty work ouside of function handler
+        - connect db, sdk, dependencies outside of function handler
+    - Use environment variables for:
+        - database connection strings, s3 buckets etc
+        - passwords, sensitive values can be encrypted using KMS
+    - Minimize deployment package size to its runtime necessities
+        - use layers where necessary
+    - avoid recursive code, never have a lambda function call itself
+- Hands on
+    - Intro
+        - go to lambda console -> create function -> use a blueprint -> hello world blueprint -> give function name -> create function
+            - to test: click on test -> assign event name -> create -> test
+            - permissions: show that cloudwatch has access to lambda
+    - Lambda and ALB
+        - lambda console -> author from scratch (create a role with basic lambda permissions) (good practice to make IAM role per lambda functions as it is easier to manage) -> go to ec2 console and create alb (target type lambda function, register target as the fuction and create) -> back to lambda console and test -> go to alb dns name on browser after it is provisioned and the response can be seen
+        - to enable multi header support: go to load balancer target groups -> attributes and enable multi value header
+    - Asynchronous
+        - trigger a function from cli `--invocation-type Event` -> status code 202 (we know function invoked but we are not waiting for the result)
+        - set up dead letter queue: go to config for the function -> scroll to bottom for asynchronous invocation. Go to IAM for function and allow SQS/SNS permission
+    - Cloudwatch Events/EventBridge
+        - Lambda console -> lambda funtion from scratch -> create funtion -> go to eventbridge console -> create rule -> schedule fixed rate -> target will be lambda function we created
+    - S3 Event notifications
+        - lambda console -> lambda function from scratch -> create function -> s3 console -> create bucket -> create bucket -> s3 properties -> events -> name, events, sent to lambda and name -> save
+    - Lambda event source mapping
+        - lambda console -> create function -> sqs console -> create new queue -> in lambda console add trigger sqs -> go to lambda role iam and add permission to read from sqs -> finish adding the trigger
+            - to test: sqs console -> add message -> send. View logs in lambda cloudwatch
+    - Destinations
+        - lambda console -> trigger s3 -> add destination (asynchronous invocation, on failure/on success, destination: sqs queue)
+    - Environment variables
+        - lambda console -> create function -> there is a section called environment variables in the function. Add it there -> in python (import os, os.getenv(""))
+    - Logging and Monitoring
+        - Lambda console -> go to function or create function -> monitoring tab
+        - x-ray: scroll down to x-ray and enable active tracing
+    - Lambda in VPC
+        - lambda console -> create new function -> scroll to vpc -> custom vpc -> go to IAM console -> go to vpc and add lambdaENI policy -> finish creating vpc on lambda page
+            - to test: run test in lambda console -> then go to network interfaces in ec2 console -> check eni creacted
+    - Config lambda
+        - lamba console -> create function -> scroll to basic settings
+    - Concurrency
+        - lambda console -> for function there is a concurrency section
+        - provisioned concurrency: there is a section for it. set it to minimize the number of cold starts
+    - Dependencies
+        - lambda console -> create new function -> Function code (upload a .zip file) -> save
+    - Cloudformation
+        - `lambda-xray.yaml`: needs parameters S3BucketParam, S3KeyParam, S3ObjectVersionParam. Resoruces needs IAM Role and the policy (lambda, cloudwatch, xray, s3). Create lambda function, define handler, lambda executrion role, s3 params, runtime, timeout and xray
+            - then go and create s3 bucket -> enable versioning in properties -> upload zip of function -> then go to cloudformation console -> create stack -> upload template -> parameters( bucket param: name of bucket at top of s3, key param: name of the function, object version: in properties of s3) -> create stack
+    - Lambda layers
+        - lambda console -> create function -> click on layers -> add layer -> select from list of runtime compatible layers -> add
+    - Versioning and aliasing
+        - versioning: lambda console -> create function -> (qualifiers; can show versioning and aliases) -> actions -> publish new version
+        - alias: action -> create alias -> (name: dev, points to: $LATEST)
+            - blue/green deployment: alias configuration -> shift traffic
+    
