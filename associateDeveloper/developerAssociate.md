@@ -2007,3 +2007,165 @@
             - if permission required: lambdaDynamoDbExecutionRole
     - TTL
         - dynamodb console -> create table -> items tab to create a row -> create field name doesnt matter but it has to be number format ex: `expire_on: {epoch time}` -> overview tab -> time to live attribute -> manage ttl -> run preview to see what attributes expire on selected times -> continue
+
+## API Gateway
+
+- Features
+    - AWS Lambda + API Gateway: No infrastructure to manage
+    - Support for the WebSocket Protocol
+    - Handle API versioning
+    - Handle different environments
+    - Handle security (Authentication and Authorization)
+    - Create API keys, handle request throttling
+    - Swagger / Open API import to quickly define APIs
+    - Transform and validate request and responses
+    - Generate SDK and API sepcifications
+    - Cache API responses
+- Api Gateway Integrates with
+    - **Lambda Function**: invoke lambda function, easy way to expose REST api backed by AWS Lambda
+    - **Http**: expose http endpoints in the backed
+    - **AWS Service**: expose any aws api through the API gateway
+- API Gateway - Endpoint Types
+    - **Edge-Optimized (default)**: for global clients. Requests are routed through the CloudFront Edge locations (imporves latency). The API Gateway still lives in only one region
+    - **Regional**: for clients within the same region. Could manually combine with CloudFront
+    - **Private**: can only be accessed from your VPC using an interface endpoint (ENI). Use resource policy to define access
+- Deployment Stages
+    - need to make a deployment for changes to be in effect
+    - changes are deployed to stages
+    - each stage has its own configuration parameters
+    - stages can be rolled back as a history of deployments is kept
+    - **stage variables**: are environment variabes for API Gateway
+        - we can create a stage variable to indicate the corresponding lambda alias
+- Canary deployments
+    - possibilty to enable canary deployments for any stage (usually prod). This is to test prod for a small amount of traffic
+    - choose the % of the traffic the canary channel receives
+    - metrics and logs are separate (for better monitoring)
+    - Possibility to override stage variables for canary
+    - This is blue/green deployment with AWS Lambda & API Gateway
+- Integration Types
+    - **MOCK**: returns a response without sending the request to the backend
+    - **HTTP/AWS (Lambda & AWS Services)**: api gateway will forward request but we can modify it
+        - must configure both integration request and integration response
+        - setup data mapping using mapping templates for the request and response
+    - **AWS_PROXY (Lambda Proxy)**: request from client is input to lambda
+        - the function is responsible for the logic of request/response
+        - No mapping template, headers, query string parameters are passed as arguements
+    - **HTTP_PROXY**: request is passed to the backend
+        - no mapping template
+        - the HTTP response from the backend is forwarded by API Gateway
+    - Mapping templates can be used to modify request/ response. Rename/Modify query string parameters. Modify body content. Add headers. Filter output results (remove unnecessary data)
+        - Example: client sends Json payload to API gateway + Mapping template. It changes the data to an XML payload to send to SOAP API
+- Swagger & Open API 3.0
+    - common way of defining REST APIs, using API definition as coe
+    - import existing swagger/OpenAPI 3.0 spect to API Gateway includes: method, method request, integration request
+    - swagget can be written in YAML of JSON
+    - using swagger can generate SDK for our application
+- Caching API responses
+    - Caching reduces the number of calls made to the backend
+    - Default TTL is 300 seconds. Min is 0s and max is 3600s
+    - Caches are defined per stage
+    - Possible to iverride cahce settings per method
+    - Cache encryption option
+    - Cache capacity between 0.5GB to 237GB
+    - Cache is expensive, makes sense in production, may not make sense in dev/test
+    - Caching Invalidation
+        - Able to flush the entire cache (invalidate it) immediately
+        - Clients can invalidate the cache with `header: Cache-Control: max=0` (with proper IAM authorization)
+- Usage Plans and API Keys
+    - if ypu want to make an API available as an offering to your customers
+    - Usage plans
+        - who can access one or mode deployed API stages and methods
+        - how much and how fast they can access them
+        - uses API keys to identify API clients and meter access
+        - configure throttling limits and quote limits tat are enforced on individual client
+    - API Keys
+        - alphanumeric string values to distribute to your customers
+        - can use with usage plans to control access
+        - throttling limits are applied to api keys
+        - quota limits is the overall number of maximum requests
+    - Correct order for api keys
+        - to configure a usage plan
+            1. create one or more APIs, configure the methods to require an API key and deploy the APIs to stages
+            2. generate or import API keys to distribute to application developers who will be using your API
+            3. Create the usage plan with the desired throttle and quota limits
+            4. Associate API stages and API keys with the usage plan
+            5. Callers of the API must supply an assigned API key in the x-api-key header in requests to the API
+- Logging & Tracing
+    - CloudWatch Logs: enable cloudwatch logging at the stage level. Can override settings on a per API basis. Log contains information about request/response body
+    - X-Ray: enable tracing to get extra information about requests in API Gateway. X-ray api gateway + AWS Lambda gives you the full picture
+    - Cloudwatch metrics: metrics are by stage. Possibilty to enable detailed metrics
+        - CacheHitCount and CacheMissCount: efficiency of the cache
+        - Count: number of API requests in a given period
+        - IntegrationLatency: time between when API Gateway relays a request to the backend and when it receives a response from the backend
+        - Latency: time between when API Gateway receives a request from a client and when it returns a responce to the client
+        - 4xxError (client side) & 5xxError (server side)
+    - Account Limit
+        - API gateway throttles requests at 10000 rps across all API
+        - Soft limit can be increased upon request
+        - in case of throttling => 429 Too many requests
+        - can set stage limit and meethod limits to improve performance
+        - or can define Usage Plans to throttle per customer
+    - Errors
+        - 4xx Client errors: 400 Bad request, 403 Access denied or WAF filtered, 429 Quota exceeded
+        - 5xx Server errors: 502 Bad Gateway, 503 Service Unavailable, 504 Integration Failure
+- CORS
+    - Cors must be enabled when you receive API calls from another domain
+    - The OPTIONS pre-flight request must contain the following headers: Access-Control-Allow-Methods, Access-Control-Allow-Headers, Access-Control-Allow-Origin
+    - CORS can be enabled through console
+    - ![CORS](./CORS.PNG)
+- Authentication and Authorization
+    - IAM Permissions: create IAM policy authorization and attach to User/Role
+        - Authentication = IAM. Authorization = IAM Policy
+        - Great for users/roles already within AWS account + resource policy for cross account
+    - Resource policies: allow policy to determine who and what can access
+        - Allow for Cross Account Access (combined with IAM security)
+        - Allo wfor specific source IP address
+        - Allow for a VPC endpoint
+    - Cognito User Pools: fully manages user lifecycle, token expires automatically
+        - API gateway verifies identity automatically from AWS Cognito
+        - No custom implementation required
+        - Authentication = Cognito User pools. Authorization = api gateway methods
+        - Great when you manage your own user pool
+    - Lambda Authorizer: token based authorizer (bearer token) example JWT or Oauth
+        - a request parameter based Lambda authorizer
+        - lambda must return an IAM policy for the user, result policy is cached
+        - Authentication = External. Authorization = lambda function.
+        - Great for 3rd party tokens
+- Http API vs Rest API
+    - http api: low latency, cost effective AWS Lambda poxy, HTTP proxy apis and private integration. No built in support for CORS. No usage plans and API keys
+    - rest api: all features
+- WebSocket API
+    - Websocket is two way interactive communication between a user's browser and a server. Used for real time applications such as chat applications, collaboration platforms, multiplayer games, and financial trading platforms
+    - Works with AWS services or HTTP endpoints
+    - Incoming JSON messages are routed to different backend. If no routes then sent to default
+- Architecture
+    - create a single interface for all the microservices in your company. For example /service1 goes to one elb while /service2 goes to another elb and /docs can go to s3 bucket
+- Hands On
+    - Basics
+        - Api gateway console -> rest api -> build -> actions -> create method(resources for url) -> lambda proxy integration -> (create lambdea function) -> deploy api -> can go to link to view
+            - test: test button on left hand side
+    - Stage variables
+        - api gateway console -> stages on sidebar -> (lambda function set aliases) -> when creating method in api gateway lambda function is called name:$(stageVariables.lambdaAlias) -> save -> copy the code -> go to command line and replace the brackets with the alias name from lambda. This will add the resource based policy for the lambda function -> then back at api gateway the endpoint can now be tested.
+            - deploy: actions -> deploy api -> stages on sidebar -> then go to stage variables and then edit the stage variables
+    - Stages Configuration
+        - api gateway console -> stages on sidebar -> settings tab defines cache, method throttling, WAF, client certificate. Logs tab has clodwatch, x-ray. Stage variables tabs has the stage variables. Export tab allows export through swawgger etc. Canary tabs is used to do canary deployments
+    - Canary deployment
+        - api gateway console -> stages in left sidebar -> canary tab -> change percentage of requests redirected to canary -> now when deploing to api gateway deploy to canary of prod -> promote canary for it to become main
+    - Mapping Templates
+        - api gateway consolle -> resources on sidebar -> create new resource ->  (create lambda function) -> create get method -> lambda function -> integration response -> mapping templates -> application/json -> generate empty template and enter the json ($inputRoot.varName to target the variable from returned json from server)
+    - Swagger
+        - api gateway console -> create new api gateway -> REST API -> import -> import from swagger or Open API 3
+            - generate sdk: api console -> left side bar stages -> clicl on stage -> sdk generation or export api as swagger or open api3
+    - Caching
+        - api gateway console -> left sidebar stages -> go to stage -> settings -> enable API cache -> save changes
+            - edit each methods level -> click on method -> override the method -> go to cahce settings
+    - Usage plans and API keys
+        - api consle -> resources - create new resource and then make get method -> integration type mock (just to make testing easier for now) -> method request -> api key required to true -> usage plans from sidebar(throttle and quota can be enabled here)
+            - to call endpoint: pass X-API-Key in request
+    - CORS
+        - api gateway console -> resources on sidebar -> click on endpoint and actions -> enable cors -> change access control allow origin if only allow certain website -> deploy api
+            - for proxies need to add Access-Control-Allow-Origin in proxy code
+    - Authentication and Authorization
+        - api gateway console -> click on any method in resources -> authorization can be set here and used in conjunction with resource policy. Other authorizers can be set from autroizers in left sidebar
+    - Websocket
+        - lambda console -> functions -> create function from serverless (browse serverless app repo, websocket) -> deploy. This creates the api gateway as well. Websocket url can be seen at stages in left sidebar
