@@ -2213,3 +2213,62 @@
 - CDK vs SAM
     - SAM is serverless focused. Great for quickly getting started with Lambda. Write template declaratively in JSON or YAML
     - CDK works with all aws services and can write infra in a programming language
+
+## Cognito
+
+- Cognito is used to give users an identity so that they can interact with our applications
+    - Cognito User Pools
+        - Sign in functionality for app users
+        - Integrate with API Gateway & Application Load Balancer
+    - Cognito Idenity Pools (federated Identity)
+        - Provide AWS credentials to users so they can access AWS resources directly
+        - Integrate with Cognito User Pools as an identity provider
+    - Cognito Sync
+        - Synchronize data from device to Cognito
+        - Is deprecated and replaced by AppSync
+- Cognito vs IAM. IAM is for users who we trust within AWS environment. Cognito is for external users
+- Cognito User Pools (CUP)
+    - Create a serverless database of user for web and mobile apps
+    - They can do simple login, password reset, email and phone number verification, MFA, Federated identities: users from Facebook, Google, SAML
+    - Can block users if their credentials are compromised elsewhere
+    - Login sends back a JSON Web Token (JWT)
+    - CUP integrates with API Gateway and Application Load Balancer
+    - CUP can invoke a lambda function synchronously on these triggers
+        - Authentication events: Pre/Post authentication, Pre Token Generation
+        - Sign up: pre/sign up, post confirmation, migrate user
+        - Messages: custom message
+        - Token creation: pre token generation
+    - Cognito has a hosted authentication UI that you can add to your app to handle sign-up and sign in workflows
+        - using the hosted UI, you have a foundation for integration with social logins
+        - can customize with a custom logo and custom CSS
+- Cognito Identiy Pools (Federated Identities)
+    - get identities for "users" so they obtain temporary AWS credentials
+        - example use case: need to give a group of people access to private s3/dynamoDb. Since there are so many of them its hard to assign IAM roles to them individually. So they need to verify authenticate themselves to get direct access to AWS
+    - your identity pool can include public providers (login with amazon, facebook etc), users in aws cognito user pool, saml, developer authenticated identities or unauthenticated (guest) access
+    - users can then access AWS services directly or through API Gateway
+        - The IAM policies aplied to the credentials are defined in cognito
+    - we can set default IAM roles for authenticated and guest users. Also define rules to choose the role for each user based on the user's ID
+- Cognito User pools vs Identity pools
+    - Cognito user pools: database of users for web and mobile application
+    - Identity pools: obtain aws credentials for users. Users can be unauthenticated (guests). Users are mapped to IAM roles & policies, can leverage policy variables
+- Cognito Sync
+    - Deprecated - use AWS AppSync now
+    - Store preferences, configuration, state of app
+    - Cross device synchronization (any platform - iOS, Android, etc)
+    - Offline capability (sunchronization when back online)
+    - Store data in datasets, up to 20 datasets to synchronize
+    - **Push sync**: silently notify across all devices when identity data changes
+    - **Cognito stream**: stream data from cognito into kinesis
+    - **Cognito Events**: execute lambda functions in response to events
+- Hands on
+    - Cognito user pool
+        - cognito console -> manage user pools (database of users) -> create pool -> give pool name -> step through settings/review user pool
+            - app client: allows us to login to our user pool
+            - app client settings: how users can log in to our app. Launch hosted UI after domain name is set
+            - domain name: to set up domain name 
+            - UI customization: allows us to change sign in page
+            - users and groups: shows all users
+            - identity providers: allows federated identities
+            - triggers: may want to invoke lambda function based on event during sign up or sign in
+    - Identity Pools
+        - cognito console -> federated identities -> identify iam roles to use -> then get sdk -> (iam console has two roles created and they can be customized to determine their access) -> edit identity pool lets us view settings
