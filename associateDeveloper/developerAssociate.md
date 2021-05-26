@@ -2169,3 +2169,34 @@
         - api gateway console -> click on any method in resources -> authorization can be set here and used in conjunction with resource policy. Other authorizers can be set from autroizers in left sidebar
     - Websocket
         - lambda console -> functions -> create function from serverless (browse serverless app repo, websocket) -> deploy. This creates the api gateway as well. Websocket url can be seen at stages in left sidebar
+
+## Serverless Application Model (SAM)
+
+- SAM is a framework for developing and deploying serverless applications. All configuration is YAML code
+    - Generate complex CloudFormation from sinple SAM YAML file. Supports anything frpm Cloudformation: Outputs, Mappings, Parameters, Resources...
+    - only two commands to deploy to AWS
+    - SAM can use CodeDeploy to deploy Lambda functions
+    - SAM can help you to run Lambda, API Gateway, DynamoDB locally
+    - Transform Header indicates its SAM template: `Transform: 'AWS::Serverless-2016-10-31` 
+        - lambda: `AWS::Serverless::Function`
+        - Api gateway: `AWS::Serverless:Api`
+        - DynamoDB: `AWS::Serverless::SimpleTable`
+        - Package & Deploy: aws cloudformation package / sam package, aws cloudformation deploy / sam deploy
+- SAM Policy Templates: are a list of templates to apply permissions to your Lambda Functions
+    - **S3ReadPolicy**: gives read only permissions to objects in S3
+    - **SQSPollerPolicy**: allows to poll an SQS queue
+    - **DynamoDBCrudPolicy**: CRUD = create read update delete
+- SAM framework natively uses CodeDeploy to update Lambda functions
+- SAM is built on CloudFormation. It requres the Transform and Resources sections. Need to remember sam build, sam package, and sam deploy commands.
+- Serverless Application Repository (SAR)
+    - Managed repository for serverless applications
+    - Applications are packaged using SAM
+    - Build and publish applications that can be re-used by organizations. Can share publicly. Can share with specific AWS accounts
+    - This prevents duplicate work, and just go straight to publishing
+    - Application settings and behaviour can be customized using Environment variables
+- Hands On
+    - overview
+        - instructions to download cli can be found online
+        - `sam init` creates project. For examples g o to github repo awslabs/serverless-application-model
+        - package: aws cloudformation package --s3-bucket `bucket name` --template-file `template file` --output-template-file `gen/location`
+        - deploy: aws cloudformation deploy --template-file `gen/location` --stack-name `give stack name` --capabilities CAPABILITY_IAM. Can check build status in cloudformation
