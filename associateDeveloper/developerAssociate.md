@@ -2200,3 +2200,16 @@
         - `sam init` creates project. For examples g o to github repo awslabs/serverless-application-model
         - package: aws cloudformation package --s3-bucket `bucket name` --template-file `template file` --output-template-file `gen/location`
         - deploy: aws cloudformation deploy --template-file `gen/location` --stack-name `give stack name` --capabilities CAPABILITY_IAM. Can check build status in cloudformation
+
+## Cloud Development Kit (CDK)
+
+- CDK allows developers to define cloud infrastructure using a familiar language like Javascript/Typescript, Python, Java, and .NET
+- Contains high level components called **constructs**
+- This code is type safe vs CodeDeploy yaml
+- The code is "compiled" into a CloudFormation template (JSON/YAML)
+- Therefore the infrastructure and application runtime code can be deployed together
+    - Great for Lambda functions
+    - Great for Docker containers in ECS/EKS
+- CDK vs SAM
+    - SAM is serverless focused. Great for quickly getting started with Lambda. Write template declaratively in JSON or YAML
+    - CDK works with all aws services and can write infra in a programming language
