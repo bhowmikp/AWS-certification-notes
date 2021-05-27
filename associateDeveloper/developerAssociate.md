@@ -2272,3 +2272,61 @@
             - triggers: may want to invoke lambda function based on event during sign up or sign in
     - Identity Pools
         - cognito console -> federated identities -> identify iam roles to use -> then get sdk -> (iam console has two roles created and they can be customized to determine their access) -> edit identity pool lets us view settings
+
+## Step Functions
+
+- **AWS Step Functions**: : lets users model your workflows as state machines (one per workflow). Used for: Order fulfillment, Data processing, web applications or any workflow
+    - Written in JSON
+    - Visualization of the workflow and the execution of the workflow, as well as history
+    - Start workflow with SDK call, API Gateway, Event Bridge (CloudWatch Event)
+- **Task States**: do some work in your state machine. It invokes AWS service or can run on one activity (polling or getting data from another service)
+- States
+    - Choice state: test for a condition to send to a branch (or default branch)
+    - Fail or succeed state: stop execution with failure or success
+    - Pass state: simply pass its input to its output or inject some fixed data, without performing work
+    - Wait state: provide a delay for a certain amount of time or until a specified time/date
+    - Map state: dynamically iterate steps
+    - Parallel state: begin parallel branches of execution
+- Error handling in step function
+    - Any state can encounter runtime errors for various reasons such as state machine definition issues, task failures, transient issues
+    - Use Retry and Catch in the State Machine to handle the errors instead of inside the Application Code
+    - Predifined errors codes:
+        - States.ALL: matches any error name
+        - States.Timeout: task ran longer than TimeoutSeconds or no heartbeat received
+        - States.TaskFailed: execution failure
+        - States.Permissions: insufficient privileges to execute code
+    - Retry (Task or Parallel State)
+        - evaluated from top to bottom
+        - ErrorEquals: match a specific kind of error
+        - IntervalSeconds: initial delay before retrying
+        - BackoffRate: multiple the delay after each retry
+        - MaxAtempts: default to 3, set to 0 for never retried
+        - When max attempts are reached the Catch kicks in
+    - Catch (Task or Parallel State)
+        - Evaluated from top to bottom
+        - ErrorEquals: match a specific kind of error
+        - Next: state to send to
+- Types of Step Functions
+    - Standard: maximum duration 1 year, over 2000 execution per second, priced per state transition
+    - Express: maximum 5 minutes, over 100,000 execution per second, priced by number of excutions and their duration and memory (cheaper). This is for small high throughput usecases
+- **AppSync**: is a managed service that uses GraphQL
+    - **GraphQL**: makes it easy for applications to get exactly the data they need
+        - This includes combining data from one or more sources
+    - Retrieve data in real-time with WebSocket or MQTT on WebSocket
+    - For mobile apps: local data access & data synchronization as well as offline synchronization
+    - Four ways to authorize applications to interact with your AWS AppSync GraphQL API
+        - API_KEY
+        - AWS_IAM
+        - OPENID_CONNECT
+        - AMAZON_COGNITO_USER_POOLS
+        - For custom domain and https, use CloudFront in front of AppSync
+- Hands On
+    - Intro
+        - step function console -> create state machine -> author with code snippets -> (create lambda function) -> write the definition and can add arn from previously created lambda -> create state machine -> start execution
+    - AppSync
+        - appsync console -> start from a sample project
+            - schema: shows the schema for graphql
+            - data sources: represents the data sources for example dynamoDb
+            - queries: we can test out queries here
+            - caching: caching behaviour
+            - settings: configure api. This holds api url and key
