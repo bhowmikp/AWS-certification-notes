@@ -2385,3 +2385,37 @@
         - AWS Managed Microsoft AD
         - AD connector: directory gateway (proxy) to redirect to on-premise AD
         - Simple AD: AD-compatible managed directory on AWS
+
+## Other AWS Services
+
+- AWS Simple Email Service (SES)
+    - SMTP interface or AWS SDK
+    - Ability to receive email. Integrate with: S3, SNS, Lambda
+    - Integrated with IAM for allowing to send emails
+- Databases
+    - RDS: Relational databases
+        - PostgresSQL, MySQL, Oracle
+        - Aurora + Aurora Serverless
+    - DynamoDB: NoSQL DB
+        - Managed, Key Value, Document
+        - Serverless
+    - ElastiCache: in memory DB
+        - Redis/Memcached
+        - Cache capability
+    - Redshift: OLAP - Analytic Processing
+        - Data Warehouse / Data Lake
+        - Analytics queries
+    - Neptune: graph database
+    - DMS: database migration service
+    - DocumentDB: managed MongoDB for AWS
+- AWS Certificate Manager (ACM)
+    - ACM: used to host public SSL certificates in AWS
+        - buy your own and upload them using the CLI
+        - have ACM provision and renew public SSL certificates free of cost
+    - ACM loads SSL certificates on following integrations
+        - load balancers (including the ones created by EB)
+        - Cloudfront distributions
+        - APIs on API Gateways
+- Hands on
+    - ACM
+        - certificate manager console -> provision certificates -> request a certificate -> enter domain name -> create CNAME in DNS -> (for load balancer add listener port 443 and protocol https)
