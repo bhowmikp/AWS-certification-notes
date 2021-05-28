@@ -525,7 +525,7 @@
     - The connection is private, secure and fast
     - Goes over a private network
 - Typical 3 tier solution architecture
-    - ![Three tier architecture](./threetierarchitecture.PNG)
+    - ![Three tier architecture](./img/threetierarchitecture.PNG)
 
 ## Amazon S3 Intro
 
@@ -793,7 +793,7 @@
     - Control the TTL (0 seconds to 1 year) using Cache-Control headers
     - can invalidate part of the cache using the CreateInvalidation API
     - maximize cache hits by separating static and dynamic distributions
-    - ![Caching Architecture](./CachingArchitecture.PNG)
+    - ![Caching Architecture](./img/CachingArchitecture.PNG)
 - Cloudfront Security
     - Cloudfront Geo-restriction: allow whitelist and blacklist for countries
     - HTTPS
@@ -872,7 +872,7 @@
     - container can pull for ecr by placing ecr link
 - Fargate: just create task definitions and AWS will run containers for us. To scale, just increase the task number. No more EC2
     - When launching an ECS cluster, we hace to create our EC2 instances. If we need to scale, wee need to add EC2 instances. Fargate makes this process easier
-- ![ECS IAM Roles](./EcsIamRoles.PNG)
+- ![ECS IAM Roles](./img/EcsIamRoles.PNG)
 - ECS Tasks Placement: only for ECS with EC2, not for Fargate
     - When a task of type EC2 is launched, ECS must determine where to place it, with the constraints of CPU, memory, and available port
     - Similaryly, when a service scales in, ECS needs to determine which task to terminate
@@ -1625,7 +1625,7 @@
         - AWSLambdaVPCAccessExecutionRole
     - A lambda function in your VPC does not have internet access
         - Deploying a lambda function in a private subnet gives it internet access if you have a NAT Gateway / Instance
-        - ![Lambda in VPC](./LambdaInVPC.PNG)
+        - ![Lambda in VPC](./img/LambdaInVPC.PNG)
     - Deploying a Lambda function in a public subnet does not give it internet access or a public IP
 - Lambda Function Configuration
     - RAM: from 128MB to 30008MB in 64MB increments. The more RAM you add, the more vCPU credits you get.
@@ -2112,7 +2112,7 @@
     - Cors must be enabled when you receive API calls from another domain
     - The OPTIONS pre-flight request must contain the following headers: Access-Control-Allow-Methods, Access-Control-Allow-Headers, Access-Control-Allow-Origin
     - CORS can be enabled through console
-    - ![CORS](./CORS.PNG)
+    - ![CORS](./img/CORS.PNG)
 - Authentication and Authorization
     - IAM Permissions: create IAM policy authorization and attach to User/Role
         - Authentication = IAM. Authorization = IAM Policy
@@ -2330,3 +2330,58 @@
             - queries: we can test out queries here
             - caching: caching behaviour
             - settings: configure api. This holds api url and key
+
+## Advanced Identity
+
+- Security Token Service (STS)
+    - allows to grant limited and temporary access to AWS resources (upto 1 hour)
+    - API
+        - **AssumeRole**: assume roles within your account or cross account
+        - **AssumeRoleWithSAML**: return credentials for users logged with SAML
+        - **AssumeRoleWithWebIdentity**: return creds for users logged with an IdP (facebook Login, Google login etc)
+            - aws recommends against using this, and using Cognito Identity Pools instead
+        - **GetSessionToken**: for MFA, from a user or AWS account root user
+        - **GetFederationToken**: obtain temporary creds for a federated user
+        - **GetCallerIdentity**: return details about the IAM user or role used in the API call
+        - **DecodeAuthorizationMessage**: decods error message when an AWS API is denied
+    - using sts to assume a role
+        - define an IAM role within your account or cross-account
+        - define which principals can access this IAM role
+        - use aws sts to retrieve credentials and impersonate the IAM Role you have access to (AssumeRole API)
+        - temporary credentials can be valid between 15 minutes to 1 hour
+    - sfa with mfa
+        - use GetSessionToken from STS
+        - Appropriate IAM policy using IAM conditions
+        - aws:MultiFactoAuthPresent:true
+        - reminder, GetSessionToken returns: Access Id, secret key, session token, expiration date
+- Authorization Model Evaluation of Policies
+    - if there's an explicit DENY, end decision and DENY
+    - if there's an ALLOW, end decision with ALLOW
+    - else DENY
+- IAM policies & S3 bucket policies
+    - IAM policies are attached to users, roles, groups
+    - S3 bucket policies are attached to buckets
+    - when evaluating if an IAM pricipal can perform an operation X on a cucket, the union of its assigned IAM policies and s3 bucket policies will be evaluated
+- Dynamic Policies with IAM
+    - assign user a /home/<user> folder in s3
+    - create dynamic policy with IAM by leveraging special policy variable ${aws:username}
+- Inline vs Managed Policies
+    - AWS Managed Policy: maintained by AWS, good for power users and administrators, updated in case of new services/new APIs
+    - Customer Managed Policy: best practice, re-usable, can be applied to many pricipals; version controlled+ rollback, central change management
+    - Inline: strict one-to-one relationship between policy and principal, policy is deleted if you delete the IAM principal
+- Granting a user permissions to Pass a Role to an AWS Service
+    - to configure many AWS services, you must pass an IAM role to the service
+    - the service will later assume the role and perform actions
+    - for this, we need the IAM permission iam:PassRole. It often come with iam:GetRole to view the role being passed
+    - Roles can only be passed to what their trust allows
+    - A trust policy for the role that allows the service to assume the role
+- Directory Service
+    - Microsoft Active Directory (AD)
+        - found on any windows server with AD Domain Services
+        - database of objects: user accounts, computers, printers, file shares, security groups
+        - centralized security management, create account, assign permissions
+        - objects are organized in trees. group of trees is a forest
+    - AWS Directory Services
+        - AWS Managed Microsoft AD
+        - AD connector: directory gateway (proxy) to redirect to on-premise AD
+        - Simple AD: AD-compatible managed directory on AWS
