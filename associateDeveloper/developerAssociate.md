@@ -2386,6 +2386,126 @@
         - AD connector: directory gateway (proxy) to redirect to on-premise AD
         - Simple AD: AD-compatible managed directory on AWS
 
+## AWS Security & Encryption
+
+- Encryption
+    - **Encryption in flight (SSL)**: data is encrypted before sending and decrypted after receiving. SSL certificates help woth encryption (HTTPS). Ensures no MITM (man in the middle attack can happen)
+    - **Server side encryption at rest**: data is encrypted after being received by the server. Data is decrypted before being sent. It is stored in an encrypted form thanks to a key. The encryption/decryptiong keys must be managed somewhere and the server must have access to it
+    - **Client side encryption**: data is encrypted by the client and never decrypted by the server. Data will be decrypted by a receiving client. The server should not be able to decrypt the data. Could leverage Envelope Encryption.
+- AWS KMS (Key Management Service)
+    - KMS: gives easy way to control access to your data, AWS manages keys for us. Fully integrated with IAM for authorization.
+    - Customer Master Key (CMK) Types
+        - **Symmetric (AES-256 keys)**: single encryption key that is used to Encrypt and Decrypt. Necessary for envelope encryption. You never get access to the Key unencrypted (must call KMS API to use)
+            - Able to fully manage the keys and policies. Do operation like: create, rotation policies, disable, enable
+            - Able to audit key usage (using Cloudtrail)
+            - Three types of Customer Master Keys (CMK)
+                - AWS Managed Service Default CMK: free
+                - User keys created in KMS: $1/month
+                - User keys imported (must be 256-bit symmetric key): $1/month
+        - **Asymmetric (RSA & ECC key pairs)**: public (encrypt) and private key (decrypt) pair. Used for Encrypt/Decrypt, or Sign/Verify operations. The public key is downloadable, but you cant access the Private Key unencrypted. Use case: encryption outside of AWS by users who cant call the KMS API
+    - Use kms when we need to share sensitive information like database passwords, credentials to extenral service, private key of ssl certificates
+    - the value in KMS is that the CMK used to encrypt data can never be retrieved by the user, and the CMK can be rotated for extra security
+    - KMS can only help in encrypting up to 4KB of data per call
+    - if data > 4 kb, use envelope encryption
+    - to give access to KMS to someone:
+        - make sure the Key Policy allows the user
+        - make sure the IAM policy allows the API calls
+    - KMS keys are bound by region. To move it to another region need to make a snapshot of the volume then copy the snapshot over to the new region. Re-encrypt this with a new KMS key.
+    - KMS key policies  
+        - Default KMS Key Policy
+            - Created if you dont provide a specific KMS Key policy
+            - Complete access to the key to the root user = entire AWS account
+            - Gives access to the IAM policies to the KMS key
+        - Custom KMS Key Policy
+            - Define users, roles that can access the KMS key
+            - Define who can administer the key
+            - useful for cross-account access of KMS key
+    - Copying Snapshots across accounts
+        1. create a snapshot, encrypted with your own CMK
+        2. Attach a KMS Key policy to authorize cross-account access
+        3. Share the encrypted snapshot
+        4. (in target) Create a copy of the Snapshot, encrypt it with a KMS Key in your account
+- How KMS works
+    - Encrypt: secret -> goes to KMS using Encrypt API. Secret is encrypted using CMK that we specified. KMS checks with IAM if we have the right permissions. If we do then KMS performs encryption. KMS then sends back entirely encrypted secret
+    - Decrypt: use cli to call decrypt api. KMS will automatically know which CMK was used and perform decryption. Will check with IAM and if there are necessary permissions then send decrypted secret
+- Envelope Encryption
+    - KMS Encrypt API call has a limit of 4 KB. In order to encrypt > 4KB need to use Envelope Encryption.
+    - Main API that helps us is the GenerateDataKey API
+    - encryption: works by calling GenerateDataKey API -> KMS will check IAM permissions and with CMK generates data key -> this is sent back to the user as a plain text data encryption key (DEK), an encrypted DEK is sent as well. The user can use the data encryption key to encrypt the file and creates a final file which will contain the encrypted file along with the encrypted DEK.
+    - decryption: works by calling Decrypt API -> encrypted DEK is decrypted. KMS will check IAM permissions and then along with CMK decrypt. Return plain text DEK back to user. With the paintext DEK the user can decrypt the file.
+    - Envelope encryption is available to us with AWS Encryption SDK which also exists as a CLI tool
+- KMS Request Quotas
+    - **ThrottlingException**: when request quota exceeded
+        - To respond, use exponential backoff. Or for GenerateDataKey, consider using DEK caching from the Encryption SDK. Or request quota increase
+    - For cryptographic operations, they share a quota
+- S3 Encryption for Objects
+    - 4 methods of encrypting objects in S3
+        - SSE-S3: encrypts S3 objects using keys handled & managed by AWS
+        - SSE-KMS: leverage AWS Key Management Service to manage encryption keys. Ecryption using keys handled and manged by KMS
+            - Object is encrypted server side
+            - KMS advantages: user control + audit trial
+            - Uses GenerateDataKey and Decrypt KMS API calls
+            - S3 Bucket Key: can reduce number of API calls made to KMS from S3 by 99%
+                - S3 bucket key is generated. The key is used to encrypt KMS objects with new data keys
+                - this will lead to less KMS cloudtrail events in Cloudtrail
+        - SSE-C: when you want to manage your own encryption keys
+        - Client Side Encryption
+    - S3 Bucket Force SSL: create an S3 bucket polcy with a DENY on the condition `aws:SecureTransport = false`
+    - S3 Bucket Force Encryption: deny incorrect encryption header
+- SSM Parameter Store
+    - secure storage for configuration and secrets
+    - otpional seamless encryption using KMS
+    - serverless, scalable, durable, easy SDK
+    - version tracking of configurations/secrets
+    - configuration management using path & IAM
+    - notifications with cloudwatch events
+    - integration with CloudFormation
+    - works: when we ask for plaintext configuration it checks iam permissions. If we have permission then call decryption service in KMS and then send back key
+    - Parameters Policies for advanced parameters allow to assign TTL to a parameter to force updating or deleting sensitive data such as passwords
+- AWS Secrets Manager
+    - Newer service, meant for storing secrets. Came after SSM parameter Store
+    - Capability to force rotation of secrets every X days
+    - Automate generation of secrets on rotation (uses Lambda)
+    - Integration with Amazon RDS (MySQL, PostgreSQL, Aurora)
+    - Secrets are encrypted using KMS
+- SSM Parameter Store vs Secrets manager
+    - Secrets manager
+        - expensive
+        - automatic rotation of secrets with AWS lambda
+        - Integration with RDS, redshift, DocumentDB
+        - KMS encryption is mandatory
+        - Can integrate with CloudFormation
+    - SSM Parameter Store
+        - less expensive
+        - simple api
+        - no secret rotation built in
+        - KMS encryption is optional
+        - can integrate with CloudFormation
+        - can pull a Secrets Manager secret using the SSM Parameter Store API
+- CloudWatch Logs - Encryption
+    - can encrypt CoudWatch logs with KMS keys
+    - encryption is enabled at the log group level, by associating a CMK with a log group, either when you create the log group or after it exists
+    - you cannot associated a CMK with a log group using the CloudWatch console. Must use the CloudWatch Logs API.
+- CodeBuild Security
+    - To access resources in your VPC, make sure you specify a VPC configuration for your CodeBuild
+    - Secrets in Codebuild can be stored in
+        - environment variables can reference parameter store parameters
+        - environment variables can reference secrets manager secrets
+- Hands on
+    - KMS
+        - AWS managed key: this is free and is managed by AWS. It is for AWS services like . We dont have much control over them and can just see their set
+        - Customer managed keys: create own keys. Each key $1/month. Create key -> symmetric -> kms -> define key adminstrators if we dont do this then default policy is applied -> finish
+    - Lambda and KMS
+        - lambda console and create function -> to create encrypted environment variable go to environment variable on the sidebar -> enable helpers for encryption in transit, set key and encrypt
+    - S3 Bucket Key
+        - S3 console -> create bucket -> enable encryption -> SSE-KMS, AWS managed, Bucket key: enabled -> create bucket
+    - SSM Parameter Store
+        - Systems manager console -> parameter store on sidebar -> name is like a file path such as /my-app/dev/db-url
+    - Secrets Manager
+        - Secrets manager console -> store new secret -> other type of secrets -> finish rest of settings and end
+    - CodeBuild
+        - when making codebuild and entering environment vairables. Set type to parameter. Then value is the name of the parameter. Name in codeBuild will reference the value in parameter or secrets manager
+
 ## Other AWS Services
 
 - AWS Simple Email Service (SES)
