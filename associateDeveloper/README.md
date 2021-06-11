@@ -1,0 +1,152 @@
+# Developer Associate
+
+This contains a brief summary of the notes found in `developerAssociate.md`.
+
+## General Terms
+
+- **Region**: cluster of data centers. For example: Us East (N. Virginia) us-east-1
+- **Availability Zone (AZ)**: discrete data centers with redundant power, netwaorking and connectivity. Each region has many AZ. For example: us-east-1a
+- **Public IP**: machine can be identified on the internet. IP unique. Can be geolocated easily
+- **Private IP**: machince can be identified in the public network. IP must be unique across the private network. Machines connect to WWW using an internet gateway
+- **Elastic IPs**: when start and stop EC2 instance it changes its public IP. To have a fixed public IP an Elastic IP is needed
+    - Avoid Elastic IP because
+        - Often reflect poor architectural decisions
+        - Instead, use a random public IP and register a DNS(route53) name to it
+        - Or use a Load Balancer and dont use a public IP
+
+## Concepts
+
+- Private vs Public IP (IPv4)
+    - IPv4 is more common than IPv6(newer, IoT)
+    - Public IP: machine can be identified on the internet. IP unique. Can be geolocated easily
+    - Private IP: machince can be identified in the public network. IP must be unique across the private network. Machines connect to WWW using an internet gateway
+    - Elastic IPs: when start and stop EC2 instance it changes its public IP. To have a fixed public IP an Elastic IP is needed
+        - Avoid Elastic IP because
+            - Often reflect poor architectural decisions
+            - Instead, use a random public IP and register a DNS(route53) name to it
+            - Or use a Load Balancer and dont use a public IP
+- Load balancer stickiness: same client is always redirected to the same instance behind a load balancer
+- EBS vs EFS
+    - EBS: only one instance at a time and locked in at AZ level. Migrating means taking a snapshot and restore snapshot into another AZ. EBS volume terminated if EC2 terminated
+    - EFS: mounted across different instances across different AZs. Only for linux. Can share files. Generally more expensive than EBS. Can use EFS-IA for cost savings
+    - Instance store physically attached to EC2 and therefore very fast IO. Something like database
+- ELB is used to load balance in a single region. Route 53 intended to help balance traffic across regions
+- Cloudfront vs S3 Cross Region Replication
+    - Cloudfront
+        - Global Edge Network
+        - Files are cached for a TTL (maybe a day)
+        - Great for static content that must be available everywhere. We are okay if content outdated a little bit
+    - S3 Cross Region Replication
+        - Must be setup for each region you want replication tohappen
+        - Files are updated in near real time
+        - Read only
+        - Great for dynamic content that needs to be available at low-latency in few regions
+- CloudTrail vs CloudWatch vs X-Ray
+    - CloudTrail: Audit API calls made by users/services/AWS console. Useful to detech unauthorized calls or root cause of changes
+    - CloudWatch: CloudWatch Metrices over time for monitoring. CloudWatch Logs for storing application log. CloudWatch Alarms to send notifications in case of unexpected metrices
+    - X-Ray: Automated Trace Analysis & Central Service Map Visualization. Latency, Errors, and Fault analysis. Request tracking across distributed systems
+- SQS vs SNS vs Kinesis
+    - SQS: consumer pull data, data is deleted after being consumed, can have as many workers as we want, no need to provision throughput, no ordering gurantee (except FIFO), individual message delay capability
+    - SNS: push data to many subscribers, up to 10 million subscribers, data is not persisted (lost if not delivered), pub/sub, up to 100000 topics, no need to provision throughput, intergrates with SQS for fan out architecture pattern
+     Kinesis: consumers pull data, as many consumers as we want, possibility to replay data, meant for real time big data/analytics/ETL, ordering at the shard level, data expires after X days, must provision throughput
+- CDK vs SAM
+    - SAM is serverless focused. Great for quickly getting started with Lambda. Write template declaratively in JSON or YAML
+    - CDK works with all aws services and can write infra in a programming language
+- SSM Parameter Store vs Secrets manager
+    - Secrets manager
+        - expensive
+        - automatic rotation of secrets with AWS lambda
+        - Integration with RDS, redshift, DocumentDB
+        - KMS encryption is mandatory
+        - Can integrate with CloudFormation
+    - SSM Parameter Store
+        - less expensive
+        - simple api
+        - no secret rotation built in
+        - KMS encryption is optional
+        - can integrate with CloudFormation
+        - can pull a Secrets Manager secret using the SSM Parameter Store API
+
+## Services
+
+- **Identity Access Management (IAM)**: enables you to manage access to AWS services and resources securely
+- **Elastic Compute Cloud (EC2)**: renting virtual machines
+    - **Security Group**: control how traffic is allowed into or out of EC2 machines. Basically firewalls of EC2 instances
+- **Elastic Block Store (EBS)**: is a network drive you can attach to your instance while they run. If EC2 machine terminated then loses root volume. EBS allows you to store your instance data somewhere. EBS allows to persist data
+    - EBS vs Instance store
+        - Instance store = ephemeral storage. Instance store is physically attached to the machine. EBS is a network drive
+- **Elastic Load Balancer (ELB)**: distributing the load across machines
+    - Load balancers are servers that forward internet traffic to multiple servers (EC2 instances)
+    - Classic load Balancer, Application Load Balancer (ALB), Network Load Balancer
+    - Cross-Zone Load Balancing: each load blancer instance distributes evenly across all registered instances in all AZ
+- **Auto Scaling Group (ASG)**: contains a collection of Amazon EC2 instances that are treated as a logical grouping for the purposes of automatic scaling and management
+    - automatically register new instances to a load balancer
+- **Elastic network Interfaces (ENI)**: logical component in a VPC that represent a virtual network card
+- **Elastic File System (EFS)**: managed NFS (network file system) that can be mounted on many EC2, and unlike EBS can be mounted on multiple-AZ
+- **Aurora**: AWS proprietary. Compatible with Postgres and MySQL. Cloud optimized. It is serverless
+- **ElastiCache**: In-memory databases with really high performance, low latency
+    - ElastiCache can be used to do user session store
+    - Redis vs memcached
+        - Redis (like RDS): Multi AZ with Auto-Failover, read replicas to scale reads and have high availability, data durability using AOF persistence, backup and restore features
+        - Memcached: Multi-node for partitioning of data (sharding), non-persistent (if node goes down, data is lost), no backup and restore, multi-threaded architecture
+- **Route53**: managed DNS. DNS is collection of rules and records which helps clients understand how to reach a server through its domain name
+- **VPC**: private network to deploy your resources (regional). Set of IP range called CIDR range
+    - **Subnets**: allow you to partition your network inside your VPC (AZ resource)
+        - **Public subnet**: is a subnet that is accessible from the internet
+        - **Private subnet**: is a subnet that is not accessible from the internet
+    - **NAT Gateway (managed) & NAT instances (self-managed)**: allow instances in your private subnets to access the internet while remaining private
+    - **NACL (Network ACL)**: a firewall which controls traffic from and to subnet
+- **S3**: infinitely scaling storage. It has versioning, encryption and eventually consistent
+- **Athena**: serverless service to perform analytics directly against S3 files
+- **Cloudfront**: is a CDN. It improves read performance as content is cached at the edge. It gives DDos protection, integration with Shield, AWS Web Application Firewall
+    - has Geo Restriction. Can whitelist and blacklist countries
+- **ECS**: fully managed container orchestration service
+- **ECR**: amazon's version of docker hub. Private docker image repository
+- **Fargate**: just create task definitions and AWS will run containers for us. To scale, just increase the task number. No more EC2
+- **Elastic Beanstalk**: is a developer centric view of deploying an application on AWS
+    - 3 architecture models:
+        - single instance deployment: good for dev
+        - LB + ASG: great for production or pre-rpoduction web applications
+        - ASG only: great for non-web apps in production (workers etc)
+- **CodeCommit**: storing code. Same as github
+- **CodePipeline**: automating our pipeline from code to ElasticBeanstalk
+- **CodeBuild**: building and testing our code. Same as CircleCI. Used for build and test
+- **CodeDeploy**: deploying the code to EC2 fleets (not Beanstalk)
+- **Cloudformation**: declarative way of outlining your AWS Infrastructure for any resources
+    - Cloudformation creates items specified in template in the right order with the exact configuration that is specified
+- **Cloudwatch**
+    - Metrics: Collect and track key metrics
+    - Logs: Collect, monitor, analyze and store log files
+    - Events: Send notifications when vertain events happen in your AWS
+    - Alarms: React in real-time to metrics/events
+- **EventBridge**: next evolution of CloudWatch Events
+- **X-Ray**: gives a visual analysis of our applications. Tracing is an end to end way to follow a request
+- **CloudTrail**: provides governance, compliance  amd audit for your AWS Account. It is enabled by default. Get an history of events / API calls made within your AWS account by: console, SDK, CLI, AWS Services. If a resource is deleted in AWS, look into CloudTrail first
+- **SQS**: producer (many to one) sends messages to SQS Queue which is polled by comsumer(many to one SQS). SQS acts as a buffer between producers and consumers
+- **SNS**: event producer only sends message to one SNS topic. as many event receivers (subscriptions) as we want to listen to the SNS topic notifications. Upto 10 million. each subscriber to the topic will get all the messages (can filter)
+- **Kinesis**: is a managed alternative to Apache Kafka. Big data application tool to get application logs, metrics, IoT, clickstreams
+- **Lambda**: virtual functions. No servers to manage
+    - Integrated with cloudfront it is lambda at edge. lambda can be used to change cloudfront requests and responses and this can be used to make global applications
+- **DynamoDb**: NoSQL serverless database. Fully managed and highly available
+- **API Gateway**: fully managed service that makes it easy for developers to create, publish, maintain, monitor, and secure APIs
+- **Serverless Application Model (SAM)**: framework for developing and deploying serverless applications. All configuration is YAML code
+- **Serverless Application Repository (SAR)**: managed repository for serverless applications
+- **Cloud Development Kit (CDK)**: allows developers to define cloud infrastructure using a familiar language like Javascript/Typescript, Python, Java, and .NET
+- **Cognito**: used to give users an identity so that they can interact with our applications
+    - Cognito User Pools
+        - Sign in functionality for app users
+        - Integrate with API Gateway & Application Load Balancer
+    - Cognito Idenity Pools (federated Identity)
+        - Provide AWS credentials to users so they can access AWS resources directly
+        - Integrate with Cognito User Pools as an identity provider
+    - Cognito Sync
+        - Synchronize data from device to Cognito
+        - Is deprecated and replaced by AppSync
+- **Step Functions**: lets users model your workflows as state machines (one per workflow). Used for: Order fulfillment, Data processing, web applications or any workflow
+- **AppSync**: is a managed service that uses GraphQL
+- **Security Token Service (STS)**: allows to grant limited and temporary access to AWS resources (upto 1 hour)
+- **KMS**: gives easy way to control access to your data, AWS manages keys for us. Fully integrated with IAM for authorization
+- **SSM Parameter Store**: secure storage for configuration and secrets
+- **AWS Secrets Manager**: newer service, meant for storing secrets. Came after SSM parameter Store. Capability to force rotation of secrets every X days
+- **AWS Simple Email Service (SES)**: Integrated with IAM for allowing to send emails
+- **AWS Certificate Manager (ACM)**: used to host public SSL certificates in AWS

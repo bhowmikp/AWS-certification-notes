@@ -35,7 +35,7 @@
             - Port 22 allows ssh
         - Outbound: traffic going out
         - Authorized IP ranges: IPv4 and IPv6
-        - Can be attached to multiple instances. Lives outside of EC3 instance
+        - Can be attached to multiple instances. Lives outside of EC2 instance
         - Locked down to a region / VPC combination
         - Its good to maintain one seperate security group for SSH access
         - If timeout then its security group issue
@@ -50,7 +50,7 @@
                 - Often reflect poor architectural decisions
                 - Instead, use a random public IP and register a DNS(route53) name to it
                 - Or use a Load Balancer and dont use a public IP
-    - EC2 User Date
+    - EC2 User Data
         - bootstrap instances using an EC2 User data script. Launches commands when a machine starts only once
         - Automate boot tasks such as
             - Installing updates, installing software, downloading common files etc
@@ -91,7 +91,7 @@
     - M instance are instance types that are mixed
     - T2/T3 instance types are "burstable"
         - Burst means that overall, the instance has OK CPU performance
-        - Whtn the machine needs to process something unexpected it can burstm abd COU can be very good
+        - When the machine needs to process something unexpected it can burst and CPU can be very good
         - It the machine bursts, it utilizes "burst credits". If all the credits are gone, the CPU becomes BAD.
         - If the machine stops bursting, credits are accumulated over time
     - Hands on
@@ -660,7 +660,7 @@
     - any request made to s3 from any account, authorized or denied, can be logged
     - analysis on this data can be done through Amazon Athena
     - Do not set your logging bucket to be the monitored bucket as it will create a logging loop and bucket will grow in size exponentially. Seperate application and logging bucket
-- S3 Replication: replicate bucket from one region to another regiion. Must enable versioning in source and destination. Copying is asynchronous. Must give proper IAM permissions to S3. After activating only new objects are replicated. Deletes not replicated
+- S3 Replication: replicate bucket from one region to another region. Must enable versioning in source and destination. Copying is asynchronous. Must give proper IAM permissions to S3. After activating only new objects are replicated. Deletes not replicated
     - CRR(Cross region replication). Use cases: compliance, lower latency access, replication across accounts
     - SRR(Same region replication). Use cases: log aggregation, live replication between production and test accounts
 - S3 Presigned url
@@ -871,7 +871,7 @@
     - build image from dockerfile: `docker build -t [imageName] .`
     - container can pull for ecr by placing ecr link
 - Fargate: just create task definitions and AWS will run containers for us. To scale, just increase the task number. No more EC2
-    - When launching an ECS cluster, we hace to create our EC2 instances. If we need to scale, wee need to add EC2 instances. Fargate makes this process easier
+    - When launching an ECS cluster, we have to create our EC2 instances. If we need to scale, wee need to add EC2 instances. Fargate makes this process easier
 - ![ECS IAM Roles](./img/EcsIamRoles.PNG)
 - ECS Tasks Placement: only for ECS with EC2, not for Fargate
     - When a task of type EC2 is launched, ECS must determine where to place it, with the constraints of CPU, memory, and available port
@@ -913,7 +913,7 @@
 
 ## Beanstalk
 
-- AWS Elastic Beanstalk: is a developer centric view of deployinh an application on AWS
+- AWS Elastic Beanstalk: is a developer centric view of deploying an application on AWS
     - managed service
     - just the application code is the responsibility of the developer
     - 3 architecture models:
@@ -1176,7 +1176,7 @@
     - Template helpers
         - References
         - Functions
-- Cloudformation is smart and determines the oder infrastructure can be created/updated/detroyed looking at the requirements in the yaml file. Ie the yaml file can have the resoruces specified in the wrong order but cloudformation will still be able to build the infrastructure
+- Cloudformation is smart and determines the order infrastructure can be created/updated/detroyed looking at the requirements in the yaml file. Ie the yaml file can have the resoruces specified in the wrong order but cloudformation will still be able to build the infrastructure
 - YAML and JSON are the languages you can use for Cloudformation. YAML is the preferred way
     - YAML has key value pairs, nested objects, support arrays, multi line strings, can inclue comments
 - CloudFormation Resources
@@ -1343,7 +1343,7 @@
 - AWS CloudTrail
     - Provides governance, compliance  amd audit for your AWS Account. It is enabled by default
     - Get an history of events / API calls made within your AWS account by: console, SDK, CLI, AWS Services
-    - If a resource is deleted in AWS, look int CloudTrail first
+    - If a resource is deleted in AWS, look into CloudTrail first
     - Fucntion
         - Internal monitoring of API calls being made
         - Audit changes to AWS Resources by your users
@@ -1528,7 +1528,7 @@
 - Serverless does not mean there are no servers it means you just dont manage / provision/ see them. Severless in AWS: lambda, dunamoDV, cognito, api gateway, s3, sns & sqs, fargate etc.
 - General lambda info
     - Virtual functions - no servers to manage
-    - Limitede by time - short executions about 15 min max
+    - Limited by time - short executions about 15 min max
     - Run on-demand
     - Scaling is automated
     - Benefits
@@ -2173,7 +2173,7 @@
 ## Serverless Application Model (SAM)
 
 - SAM is a framework for developing and deploying serverless applications. All configuration is YAML code
-    - Generate complex CloudFormation from sinple SAM YAML file. Supports anything frpm Cloudformation: Outputs, Mappings, Parameters, Resources...
+    - Generate complex CloudFormation from sinple SAM YAML file. Supports anything from Cloudformation: Outputs, Mappings, Parameters, Resources...
     - only two commands to deploy to AWS
     - SAM can use CodeDeploy to deploy Lambda functions
     - SAM can help you to run Lambda, API Gateway, DynamoDB locally
@@ -2275,7 +2275,7 @@
 
 ## Step Functions
 
-- **AWS Step Functions**: : lets users model your workflows as state machines (one per workflow). Used for: Order fulfillment, Data processing, web applications or any workflow
+- **AWS Step Functions**: lets users model your workflows as state machines (one per workflow). Used for: Order fulfillment, Data processing, web applications or any workflow
     - Written in JSON
     - Visualization of the workflow and the execution of the workflow, as well as history
     - Start workflow with SDK call, API Gateway, Event Bridge (CloudWatch Event)
