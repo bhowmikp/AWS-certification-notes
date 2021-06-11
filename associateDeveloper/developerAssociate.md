@@ -2454,7 +2454,7 @@
     - S3 Bucket Force Encryption: deny incorrect encryption header
 - SSM Parameter Store
     - secure storage for configuration and secrets
-    - otpional seamless encryption using KMS
+    - opyional seamless encryption using KMS
     - serverless, scalable, durable, easy SDK
     - version tracking of configurations/secrets
     - configuration management using path & IAM
