@@ -33,4 +33,74 @@
     - IAM Security Tools
         - IAM Credentials Report (account-level): a report that lists all your account's users and the status of their various credentials
         - IAM Access Advisor (user-level): access advisor shows the service permissions granted to a user and when those services were last accessed. You can use this information to revise your policies
-    
+
+## EC2 Fundamentals
+
+- **EC2 (Elastic Compute Cloud)**: infrastructure as a service
+    - Consists of
+        - Renting virtual machines (EC2)
+        - storing data on virtual drives (EBS)
+        - distributing load across machines (ELB)
+        - scaling the services using an auto-scaling group (ASG)
+    - Config options
+        - Operating system: linux, windows, mac os
+        - how much compute power and cores (CPU)
+        - how much random-access memory (RAM)
+        - how much storage space
+            - network attached (EBS & EFS)
+            - hardware (EC2 Instance store)
+        - network card: speed of the card, public IP address
+        - firewall rules: security group
+        - Bootstrap script (configure at first launch): EC2 user data
+- EC2 user data: automate boot tasks. Only run once at the instance first start. EC2 User data script runs as root user so sudo privileges
+- EC2 Instance types
+    - general purpose: great for a diversity of workloads such as web servers or code repositories. Ex: t2.micro
+    - compute optimized: great for compute intensive tasks that require high performance processors such as batch workloads, emdia transcoding, high performance web servers, machine learning, game servers. Ex: C series
+    - memory optimized: fast performance for workloads that process large data sets in memory such as high performance relational/non-relation databases, distributed web scale cache store, in-memory databases, applications performing real time processing of big unstructured data. Ex: R series
+    - storage optimized: great for storage-intensive tasks that require high, sequential read and write access to large data sets on local storage such as high transaction online transaction processing, data warehousing applications, distributed file systems. Eg: I or D series
+    - ex: m5.2xlarge means m (instance class), 5 (generation), 2xlarge(size within the instance class)
+- Security groups: control how network traffic is allowed. Fundamental to network security. They are firewall
+    - Only contains allow rules. Can reference by IP or by security group
+    - Regulate: access to ports, authorized ip ranges, control of inbound/outbound network
+    - Good to know
+        - can be attached to multiple instances
+        - locked down to a region / VPC combination
+        - lives outside the EC2. If traffic is blocked the EC2 isntance wont see it
+        - good to maintain one seperate security group for SSH access
+        - if your application is not accessible (timeout), then its a security group issue. If your application gives a "connection refused" error, then its an application error or its not launched
+        - by deafult all inbound traffic is blocked. all outbound traffic is allowed
+- Ports to know
+    - 22 = SSH (Secure shell) - log into a linux instance
+    - 21 = FTP (File Transfer Protocol) - upload files into a file share
+    - 22 = SFTP (Secure file transfer protocol) - upload files using SSH
+    - 80 = HTTP - access unssecured websites
+    - 443 = HTTPS - access secured websites
+    - 3389 = RDP (Remote Desktop Protocol) - log into a windows instance
+- **Instance connect**: ssh into ec2 instance from browser
+- Reminder: IAM Roles can be attached to EC2 instances. This is how we let the EC2 instance interact with AWS services
+- EC2 instances purchasing options
+    - on demand instances: short workload, predictable pricing
+        - highest cost but no upfornt payment. No long term commitment
+        - recommended for short term and un-interrupted workloads
+    - reserved (1 or 3 years): 75% discount compared to on-demand. Recommended for steady state usage applications
+        - reserved instances: long workloads
+        - convertible reserved instances: long workloads with flexible instances
+            - can change EC2 instance type. 54% discount
+        - scheduled reserved instances: launch within time window you reserve
+    - spot instances: short workloads, cheap, can lose instances (less reliable)
+        - can get upto 90% discount compared to On-demand
+        - instances that you can 'lose' at any point of time if your max price is less than the current spot price
+        - useful for workloads that are resilient to failure: batch jobs, data analysis, any distributed workloads. Bad for critical jobs
+        - steps to terminate spot instances: cancel spot request and then terminate the instances
+    - dedicated hosts: book an entire physical server, control instance placement
+        - helps with compliance requirements and reduce costs by allowing you to use your existing server-bound software licenses
+        - more expensive. require 3 year reservation period
+    - dedicated isntances: instances running on hardware that's dedicated to you. May share hardware with other instances in same account
+- **Spot Fleets** = set of spot instances + (optional) on-demand instances. Allows us to automatically request Spot instancs with the lowest price
+    - the spot fleet will try to meet the target capacity with price constaints
+        - can have multiple launch pools, so that the fleet can choose
+        - spot fleet stops launching instaces when reaching capacity or max cost
+    - strategies to allocate spot instances
+        - lowestPrice: from the pool with the lowest price (cost optimization, short workload)
+        - diversified: distributed across all pools (great for availalbility, long workloads)
+        - capacityOptimized: pool with the optimal capacity for the number of instances
