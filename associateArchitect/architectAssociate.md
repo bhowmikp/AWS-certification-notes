@@ -92,6 +92,7 @@
         - instances that you can 'lose' at any point of time if your max price is less than the current spot price
         - useful for workloads that are resilient to failure: batch jobs, data analysis, any distributed workloads. Bad for critical jobs
         - steps to terminate spot instances: cancel spot request and then terminate the instances
+    - spot block instances: reserve a spot on EC2 instances for a specified duration (1-6 hours) without interruption
     - dedicated hosts: book an entire physical server, control instance placement
         - helps with compliance requirements and reduce costs by allowing you to use your existing server-bound software licenses
         - more expensive. require 3 year reservation period
@@ -104,3 +105,45 @@
         - lowestPrice: from the pool with the lowest price (cost optimization, short workload)
         - diversified: distributed across all pools (great for availalbility, long workloads)
         - capacityOptimized: pool with the optimal capacity for the number of instances
+- IPv4 most common format used online. IPv6 is newer and solves problems for IoT
+- Private vs Public vs Elastic IP
+    - Public IP: accessible over the internet. Unique to WWW
+    - Private IP: accessible to devices in private network. Two different private networks (two companies) can have the same IPs. Machines connect to WWW using a NAT + internet gateway (proxy)
+    - Elastic IPs: fixed public IP for instance, and can be attached to one instance at a time. It is a public IPv4 as long as its not deleted. Try to avoid Elastic IPs as it reflects poor architectural decisions
+- **Placement Groups**: want control over the EC2 Instance placement strategy
+    - Strategy
+        - Cluster: clusters instances into a low latency group in a single AZ
+            - Pros: great network
+            - Cons: if the rack fails, all instances fails at the same time
+            - Use case: big data job, low latency and high throughput apps
+        - Spread: spreads instances across underlying hardware (max 7 instances per group per AZ). Used for critical applications
+            - Pros: span across multiple AZ. Reduced risk is simultaneous failure. EC2 instances are on different physical hardware
+            - Cons: limited to 7 instances per AZ per placement group
+            - Use case: application needs to maximize high availability. Used in critical applications
+        - Partition: spreads instances across many different particions (which rely on different sets of racks) within an AZ. Scales to 100s of EC2 instances per group (hadoopm cassandra, kafka)
+            - Use cases: big data applications
+- **ENI (Elastic Network Interface)**: logical component in a VPC that represent a virtual network card (advanced use cases)
+    - ENI attributes
+        - Primary private IPv4, one or more secondary IPv4
+        - One elastic IP (IPv4) per private
+        - one pylbic IPv4
+        - one or more security groups
+        - a mac address
+    - bound to specific AZ. ENI can be created independently and attech them on the fly on EC2 instances failover
+- EC2 Hibernate: in-memory (RAM) state is preserved. The instance boot is much faster. Under the hood the RAM state is written to a file in the root EBS volume. The root EBS volume must be entrypted. Instance cannot be hibernated for more than 60 days. Use cases: long-running processing, saving RAM state, services take a while to initilize
+    - stop: the data on disk (EBS) is kept intace in the next start
+    - terminate: any EBS volumes (root) also set-up to be destroyed is lost
+- EC2 Nitro: underlying platform for the next generation of EC2 instances
+    - allows better performance:
+        - better networking options
+        - higher speed DBS
+    - better underlying security
+- vCPU
+    - multiple threads can run on one CPU (multithreading)
+    - each thread is represented as a virtual CPU (vCPU)
+    - ex: m5.2xlarge has 4 cup and 2 threads per CPU. Therefore 8 vCPU
+- Capacity Reservations: ensure you have EC2 Capacity when needed
+    - manual or planned end-date for the reservation
+    - no need for 1 or 3 year commitment
+    - capacity access is immediate, you get billed as soon as it starts
+    - can be combined with reserved instances and savings plans to do cost savings
