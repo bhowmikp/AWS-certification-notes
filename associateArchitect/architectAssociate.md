@@ -155,12 +155,16 @@
     - think of it as a 'network usb stick'
     - EBS snapshots: make a backup of EBS volume at a point in time. Can copy snapshots across AZ or Region
     - Volume types
-        - gp2/gp3 (SSD): general perfomance SSD. cost effective, low latency. Can be usedfor system boot volumes
-        - io1/io2: highest performance SSD
-        - st1 (HDD)
-        - sc1 (HDD): lowest cost HDD
+        - gp2/gp3 (SSD): general perfomance SSD. cost effective, low latency. Can be used for system boot volumes
+        - io1/io2: highest performance SSD. Can be used for boot volume
+            - Ebs multi attach: attach the same ebs volume to multiple ec2 instances in the same AZ. Must use file system that is cluster aware
+        - st1 (HDD): cannot be used for boot volume
+        - sc1 (HDD): lowest cost HDD. cannot be used for boot volume
         - provisoned IOPS (SSD): critical business applications with sustained IOPS performance
-- Instnace Store: high performance hardware disk. Physical connection
+    - encryption: data at rest in rest and in flight is encrypted. all snapshots and all volumes created from the snapshot are encrypted
+        - encryption and decryption are handled transparently (you have nothing to do)
+        - encryption leverages keys from the KMS (AES-256)
+- Instance Store: high performance hardware disk. Physical connection
     - EBS volumes are network drives with good but limited performance
     - Instance sstore has high I/O performance. They will lose their strage if they're stopped. It is good for buffer/cache. Risk of data loss if hardware fails. Backsups and replication are users responsibility
 - Amazon Machine Image (AMI): customization of an EC2 instance
@@ -171,3 +175,14 @@
         - public ami: aws provided
         - own ami: make and maintain yourself
         - aws marketplace ami: an ami someone else made (and potentially sells)
+- Elastic File System (EFS): managed NFS (network file system) that can be mounted on many EC2
+    - EFS works with EC2 instances in multi-AZ
+    - highly available, scalable, expensive (3x gp2 EBS), pay per use
+    - Compatible with Linux base AMI (not windows)
+    - Types
+        - perfomance mode
+        - throughput mode
+        - storage tiers
+- EBS vs EFS
+    - ebs can be attached to only one instance at a time. Are locked at the AZ level. To migrate need to take a snapchot and restore the snapshot on another AZ
+    - efs can be mounted to many instances across AZ. Only for linux instances. EFS has a higher price point than EBS
