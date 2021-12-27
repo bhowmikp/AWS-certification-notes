@@ -147,3 +147,27 @@
     - no need for 1 or 3 year commitment
     - capacity access is immediate, you get billed as soon as it starts
     - can be combined with reserved instances and savings plans to do cost savings
+- Elastic Block Store (EBS) Volume: network drive you can attach to your instances while they run
+    - allows instances to persist data, even after termination
+    - can be mounted on one instance at a time and bound to specific AZ. An instance can have multi EBS
+    - have provisoned capacity (size in GB, IOPs)
+    - delete on termincation attribute contols the behavious when ec2 instance terminates. Use case: preserve root volume when instance is terminated
+    - think of it as a 'network usb stick'
+    - EBS snapshots: make a backup of EBS volume at a point in time. Can copy snapshots across AZ or Region
+    - Volume types
+        - gp2/gp3 (SSD): general perfomance SSD. cost effective, low latency. Can be usedfor system boot volumes
+        - io1/io2: highest performance SSD
+        - st1 (HDD)
+        - sc1 (HDD): lowest cost HDD
+        - provisoned IOPS (SSD): critical business applications with sustained IOPS performance
+- Instnace Store: high performance hardware disk. Physical connection
+    - EBS volumes are network drives with good but limited performance
+    - Instance sstore has high I/O performance. They will lose their strage if they're stopped. It is good for buffer/cache. Risk of data loss if hardware fails. Backsups and replication are users responsibility
+- Amazon Machine Image (AMI): customization of an EC2 instance
+    - add own software, configuration, operating system etc
+    - faster boot/configuration time because all your software is pre-packaged
+    - AMI are built for a specific region but can be copied across regions
+    - launch EC2 instance from:
+        - public ami: aws provided
+        - own ami: make and maintain yourself
+        - aws marketplace ami: an ami someone else made (and potentially sells)
