@@ -273,3 +273,49 @@
     - both allow how ec2 instance as part of asg is launched
     - launch config: old. must be recreated every time
     - launch template: new. can have multiple versions. create parameter subsets (partial configuration for re-use and inheritance). Provision using both On-Demend and Spot instances (or a mix)
+
+## RDS, Aurora, ElastiCache
+
+- Relational Database Service (RDS): managed DB service
+    - DB Engines managed: Postgres, MySQL, mariaDb, Oracle, Microsoft SQL server, Aurora (AWS Proprietary database)
+    - there are continuous backups and restore to specific timestamp
+        - automatically enabled
+        - daily backup of database
+        - transaction logs are backed up by RDS every 5 minutes
+        - 7 day retention but can be increased to 35
+        - snapshots: retention ob backup for as long as you want. Manually triggered by the user
+    - autoscaling: helps you increase storage dynamically
+        - have to set Maximum Storage Threshold (maximum limit for DB storage)
+- Read Replica vs Multi AZ
+    - Read Replicas: help scale reads. up to 5 read replicas within az, cross az, or cross region. Replication is async so reads are eventually consistent. Replicas can be promoted to their own DB
+        - For RDS Read Replicas within the same region, dont need to pay network cost. For example: us-east-1a to us-east-1b no cost
+    - Multi AZ: sync replication. Increase availability. Failover in case of loss of AZ, loss of network. Not used fot scaling. Standby database is just for failover, no one can read or write to it till failover occurs.
+        - going from single to multi az requires no downtime. Snapshot taken of first db and is used to restore standby db. Sync replication is then established between the two databases
+- RDS Security
+    - At rest encryption: possibility to encrypt the master and read replicas with AWS KMS - AES-256 encryption
+        - encryption has to be defined at launch time
+        - if the master is not encrypted, the read replicas cannot be encrypted
+    - In flight encryption: SSL certificates to encrypt data to RDS in flight
+    - Encrypting RDS backups: snapshots of unencrypted RDS databases are un-encrypted. So in order to encrypt an uncrypted database copy a snapshot into an encrypted one
+- AWS Aurora: proprietary technology from AWS. Postgres and MySQL are both supported as AuroraDB. It is cloud optimized and faster thatn mySQL and Postgres. Storage automatically grows in increments, upto 128 TB.Aurora can have 15 replicas. Failover is instantaneous.
+    - one aurora instance takes writes (master) + ASG for 15 read replicas. There is a reader endpoint where the client can connect to
+    - support for cross region replication
+- Aurora serverless: automated database instantiation and auto-scaling based on actual usage
+    - good for infrequent, intermittent or unpredictable workloads
+    - no capacity planning needed
+    - pay per second, can be more cost-effective
+- Aurora Multi-Master: every node does Read and Writes. This is for immediate failover of the write node
+- Aurora cross region read replicas: useful for disaster recovery. Simple to put in place
+- Aurora global database (recommended): 1 primary region for (read/write). upto 5 secondary (read only) regions, replication lag is less than 1 second. Upto 16 replicas per secondary region. Helps decreasing latency
+- Aurora machine learning: enables you to add ML based predictions to applications via SQL. Use cases: fraud detection, ads targeting, sentiment analysis, product recommendations
+- Elasticache: managed Redis or Memcached
+    - caches are in-memory databases with really high performance, low latency
+    - helps reduce load off of databases for read intensive workloads
+- Redis vs Memcached
+    - Redis: multi az auto failover, read replicas to scale reads and have high availability. Backup and restore features
+        - Redis sorted sets: guarantee both uniqueness and element ordering
+    - Memcached: multi-node for partitioning of data (sharding), no high availability (replication). Non persistent. No backup and restore
+- Patterns for Elasticache
+    - Lazy loading: all the read data is cached, data can become stale in cache
+    - Write through: adds or update data in the cache when written to a DB (no stale data)
+    - session store: store temporary session data in a cache (using TTL features)
