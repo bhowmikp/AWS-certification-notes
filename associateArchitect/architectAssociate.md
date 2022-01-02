@@ -186,3 +186,33 @@
 - EBS vs EFS
     - ebs can be attached to only one instance at a time. Are locked at the AZ level. To migrate need to take a snapchot and restore the snapshot on another AZ
     - efs can be mounted to many instances across AZ. Only for linux instances. EFS has a higher price point than EBS
+
+## High Availability and Scability
+
+- Saclability means that an application can heandle greater loads by adapting
+    - Verical scalability: means increasing the size of the instance. very common for non distributed systems, such as a database. But there is a hardware limit
+    - Horizontal scalability: means increasing the number of instances/systems for application. Implies distributed systems.
+- High availability: usually goes hand in hand with horizontal scaling. Means running application/system in at least 2 data centers (AZ). Goal is to survive data center loss
+- Load Balancers: are servers that forward traffic to multiple servers downstream
+    - spread load across multiple downstream instances
+    - expose a single point of access (DNS) to your application
+    - do regular health checks downstream and seamlessly handle failures of downstream instances
+    - provide ssl termination for websites
+    - enforce stickiness with cookies
+    - seperate public traffic from private traffic
+- **Elastic Load Balacer (ELB)**: is a managed load balancer
+- Types of loadbalancers
+    - Classic Load Balancer (CLB): old. support TCP (layer 4), HTTP & HTTPS (Layer 7)
+    - Application Load Balancer (ALB): supports https, https, websocket (layer 7 LB). They are a great fit for micro services & container based application (ex Docker & ECS). It allows load balancing to multiple applications on the same machine (ex: containers)
+        - Routing tables to different url target groups
+            - Routing based on path in URL
+            - Routing based on hostname in URL
+            - routing based on query string params and headers
+        - Application servers dont see the IP of the client directly. True IP of client is in the header X-Forwarded-For
+    - Network Load Balancer (NLB): supports tcp, tls (secure tcp), udp (layer 4 LB). handle milliosn of requests per second. Very low latency
+        - NLB has one static IP per AZ, and supports assigning Elastic IP
+        - NLB are used for extreme performance
+    - Gateway load blancers (GWLB): operates at layer 3(network layer). IP Protocol
+- Load balancer security groups
+    - users connect to load balancer: port 80 http, 443 https. Source is 0.0.0.0/0 so everywhere
+    - load balancer connects ec2: http port 80. Source is security group
