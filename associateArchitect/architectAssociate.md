@@ -319,3 +319,64 @@
     - Lazy loading: all the read data is cached, data can become stale in cache
     - Write through: adds or update data in the cache when written to a DB (no stale data)
     - session store: store temporary session data in a cache (using TTL features)
+
+## Route 53
+
+- Route53 is managed DNS
+- DNS is collection of rules and records which helps clients understand how to reach a server through its domain name
+- Most common records
+    - A: hostname to IPv4
+    - AAAA: hostname to IPv6
+    - CNAME: hostname to hostname
+    - Alias: hostname to AWS resource
+- Route53 can use public and private domains
+- Route53 features
+    - Load balancing
+    - Health checks
+    - Routing policy: simple, failover, geolocation, latency, weighted, multi value
+- TTL (Time to Live)
+    - web browsers and client to cahce DNS query. This is so queries are not made to route 53 to get the A record. The IP will be stored in the browser till TTL expires
+        - High TTL: about 24 hours. Less traffic on DNS. Posibly outdated records
+        - Low TTL: about 60 s. More traffic on DNS. Records are outdated for less time. Easy to change records
+    - TTL is mandatory for each DNS record
+- ELB is used to load balance in a single region. Route 53 intended to help balance traffic across regions
+- CNAME vs Alias
+    - CNAME: hostname -> hostname
+        - Only for non root domain (ex: something.mydomain.com)
+    - Alias (type A record): hostname -> AWS resource
+        - Works for root and non root domain
+        - Free of charge
+        - Native health check
+- Routing Policies
+    - Simple Routing
+        - Web browser asks for domain and Route 53 returns A record
+        - Use when you need to redirect to a single source
+        - Can't attach health checks to simple routing policy
+        - If multiple values are returned, a random one is chosen by client. This can be used to do clientside loadbalancing
+    - Weighted Routing
+        - Control the % of the requests that go to specific endpoint
+        - Helpful to test a certain percent of traffic on a new app version
+        - Helpful to split traffic between two regions
+        - Can be associated with health checks
+    - Latency Routing
+        - Most often the most suitable routing policy
+        - Redirect to the server that has the least latency close to us
+        - Latency is evaluated in terms of user to designated AWS region
+    - Health Check
+        - deemed unhealthy if fails 3 checks in a row
+        - default health check interval 30s
+        - integrate these health check with cloudwatch
+    - Failover Routing Policy
+        - There is route53 and two ec2 instances: primary, secondary(disaster recovery)
+        - Health check for primary and if it fails then failover to secondary
+    - Geolocation Routing
+        - Routing based on user location
+        - Need to create a default policy in case there's no match on location
+    - Multi value routing policy
+        - use when routing traffic to multiple resources
+        - want to associate a route 53 health checks with records
+        - basically simple routing with health checks
+        - up to 8 healthy records returned for each multi value query
+        - multi value is not a substitue for having an elb
+- Domain registrar vs DNS Service
+    - buy or register domain name with a Domain registrar. Typically comes with a DNS service to manage DNS records
