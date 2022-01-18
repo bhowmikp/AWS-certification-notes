@@ -380,3 +380,27 @@
         - multi value is not a substitue for having an elb
 - Domain registrar vs DNS Service
     - buy or register domain name with a Domain registrar. Typically comes with a DNS service to manage DNS records
+
+## Architecture Discussions
+
+- WhatsTheTime.com: allows people to know what time it is
+    - dont need a database, start small and accept downtime, eventually fully scale vertically and horizontally (no downtime)
+    - start with t2 micro with elastic ip. as demand increase then scale veritcally and use m5. with more demand make more (m5 with asg) with route53 + elb with load balancer and multi az
+- MyClothes.com: allows people to buy clothes online
+    - there is a shopping cart, jundreds of users at the same time, need to scale and maintain horizontal scalability and keep our web application as stateless as possible. Users should not lose their shopping cart. users should have their details in a database
+    - use elb stickiness so all requests go to same instance, but however if instance goes down then lose state
+    - user cookies can be used to keep track of whats in the shopping cart, but http request gets heavier. there is security risk as cookies can be altered. Therefore cookies must be validated in ec2 instance
+    - using server session we just send session_id. Session id is used to store data in elasticache, dynamodb can also be used but slower. Since users do reads more often so we can have read replicas, or we can use write through cache pattern
+- MyWordPress.com: fully scalable wordpress
+    - website to access and correctly display picture uploads. User data
+    - use EFS for shared storage between EC2 instances
+- Instantiating applications quickly
+    - EC2 Instances
+        - Golden AMI
+        - Bootstrap using User Data
+        - Hybrid
+    - RDS Databases
+    - EBS Volumes
+- ElasticBeanstalk: developer centric view of deploying an application on AWS. It is a managed service
+    - Web Tier
+    - Worker Tier: SQS queue
